@@ -1,0 +1,1730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Roterisador GPS • V26</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#0E0F12">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Roterisador">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#0e0f12;color:#f7f3ed;font-family:Arial,Helvetica,sans-serif;touch-action:none;overscroll-behavior:none}
+button,input{font:inherit}button{border:0;cursor:pointer}
+#app{position:fixed;inset:0;width:100%;height:100dvh;overflow:hidden;background:#0e0f12}
+#map{position:absolute;inset:0;width:100%;height:100%;background:#dbe4ea;z-index:1;overflow:hidden;touch-action:none;transition:transform .35s linear}
+/* Área ampliada quando o mapa é girado: 200% deixa uma margem ampla para todos os ângulos, evitando triângulos pretos nos cantos. */
+#map.map-rotated{width:200%;height:200%;left:-50%;right:auto;top:-50%;bottom:auto}
+#map.map-rotated .leaflet-container{background:#dbe4ea!important}
+#mapStatus{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;background:#dbe4ea;color:#24313b;font-weight:bold;font-size:14px}
+#mapStatus.hidden{display:none}
+#topbar{position:absolute;top:max(8px,env(safe-area-inset-top));left:10px;right:10px;z-index:500;display:flex;align-items:center;gap:8px;pointer-events:none}
+.brand{display:none;background:rgba(14,15,18,.94);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 12px;box-shadow:0 5px 20px rgba(0,0,0,.3);pointer-events:auto;min-width:118px}
+.brand b{display:block;font-size:15px;letter-spacing:.3px}.brand span{display:block;font-size:9px;color:#bcb7b0;margin-top:2px}
+.statbar{display:flex;gap:5px;flex:1;pointer-events:auto}
+.stat{min-width:46px;flex:1;background:rgba(14,15,18,.92);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:8px 3px;text-align:center;box-shadow:0 5px 18px rgba(0,0,0,.25)}
+.stat small{display:block;color:#bdb8b1;font-size:7.5px;font-weight:bold}.stat strong{display:block;color:#fff;font-size:16px;margin-top:2px}
+#menuBtn{width:46px;height:46px;border-radius:13px;background:#ff6f1f;color:#fff;font-size:24px;box-shadow:0 5px 18px rgba(0,0,0,.3);pointer-events:auto}
+#tools{position:absolute;right:10px;top:calc(max(8px,env(safe-area-inset-top)) + 58px);z-index:510;display:flex;flex-direction:column;gap:8px}
+.tool{width:48px;height:48px;border-radius:14px;background:rgba(14,15,18,.94);color:#fff;font-size:21px;box-shadow:0 5px 18px rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.08)}
+.tool.orange{background:#ff6f1f}.timer-active{background:#d9342b!important;box-shadow:0 0 0 2px rgba(217,52,43,.35),0 5px 18px rgba(0,0,0,.3)!important}.tool.green{background:#078b42}.tool.active{background:#078b42;box-shadow:0 0 0 2px rgba(7,139,66,.35),0 5px 18px rgba(0,0,0,.3)}.mapRotateBtn{background:#272a31}.mapRotateBtn:active{transform:scale(.97)}
+#search{display:none;position:absolute;left:10px;right:68px;top:118px;height:48px;z-index:500;border-radius:14px;background:rgba(14,15,18,.94);color:#fff;border:1px solid rgba(255,255,255,.1);padding:0 15px;outline:none;box-shadow:0 5px 18px rgba(0,0,0,.25)}#search::placeholder{color:#bcb7b0}
+.statusRow{position:absolute;left:10px;right:74px;top:calc(max(8px,env(safe-area-inset-top)) + 58px);z-index:500;display:flex;align-items:center;gap:8px}
+#gpsStatus{background:rgba(14,15,18,.94);color:#d8d2ca;border-radius:11px;padding:7px 10px;font-size:10px;font-weight:bold;box-shadow:0 4px 15px rgba(0,0,0,.25);max-width:220px;flex:none}.gpsTap{color:#ffb347!important}.gpsStatus.ok{color:#43d17a}.gpsStatus.err{color:#ff6961}
+.timerWidget{background:rgba(14,15,18,.94);color:#ff8a3d;border-radius:11px;padding:7px 12px;font-size:14px;font-weight:900;box-shadow:0 4px 15px rgba(0,0,0,.25);flex:none;white-space:nowrap}
+#bottom{position:absolute;left:8px;right:8px;bottom:max(7px,env(safe-area-inset-bottom));z-index:520;background:rgba(14,15,18,.96);border:1px solid rgba(255,255,255,.09);border-radius:18px;padding:9px;box-shadow:0 -4px 25px rgba(0,0,0,.3)}
+#bottomHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;color:#f7f3ed;font-size:17px;font-weight:900;margin:0 4px 10px;line-height:1.25}.routeState{color:#f7f3ed;min-width:0;flex:1;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:clamp(22px,6.2vw,34px);line-height:1.12}.routeTime{color:#ff6f1f;font-size:24px;font-weight:900;flex:none;padding-top:2px}
+#nextCard{display:flex;align-items:center;gap:10px;background:#181a1f;border-radius:15px;padding:10px}.stopBadge{min-width:58px;max-width:24%;min-height:43px;padding:5px 11px;border-radius:23px;background:#ff6f1f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;line-height:1.05;font-weight:900;flex:none;border:3px solid #f0c21a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}.nextText{min-width:0;flex:1}.nextTitle{font-weight:bold;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nextAddr{color:#f0ece6;font-size:17px;font-weight:900;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.nextPk{font-size:23px;color:#ffb48d;font-weight:900;white-space:normal;text-align:right;min-width:70px;max-width:30%;line-height:1.15}.cardStops{display:none}
+
+.actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:7px}.action{height:48px;border-radius:13px;color:#fff;font-size:12px;font-weight:bold}.deliver{background:#078b42}.navigate{background:#1976e8}.skip{background:#d9342b}
+#menu,#summary,#analysis,#listPanel,#detail,#editLocal,#help,#gpsHelp,#importInfo,#reports,#historyPanel{position:absolute;inset:0;z-index:2000;display:none;background:rgba(14,15,18,.97)}
+.panel{position:absolute;left:0;right:0;bottom:0;max-height:88%;background:#16181d;border-top-left-radius:24px;border-top-right-radius:24px;padding:18px 15px max(18px,env(safe-area-inset-bottom));box-shadow:0 -8px 35px rgba(0,0,0,.5);overflow:auto}
+.panel h2{margin:0 0 5px;font-size:20px}.sub{color:#aaa39a;font-size:12px;margin-bottom:15px}.close{position:absolute;right:14px;top:12px;width:40px;height:40px;border-radius:12px;background:#272a31;color:#fff;font-size:23px}
+.bigBtn{width:100%;height:52px;border-radius:14px;background:#ff6f1f;color:#fff;font-weight:bold;margin-top:8px}.darkBtn{background:#272a31}.greenBtn{background:#078b42}.blueBtn{background:#1976e8}.redBtn{background:#d9342b}
+.menuGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.menuItem{background:#202329;color:#fff;border-radius:14px;padding:15px;text-align:left;min-height:72px}.menuItem b{display:block}.menuItem span{display:block;color:#aaa39a;font-size:10px;margin-top:5px}
+.summaryNumbers{display:grid;grid-template-columns:1fr 1fr;gap:8px}.summaryBox{background:#202329;border-radius:15px;padding:16px;text-align:center}.summaryBox b{display:block;font-size:28px}.summaryBox span{font-size:10px;color:#aaa39a}
+#progressBar{height:9px;background:#292c32;border-radius:10px;overflow:hidden;margin:14px 0}.progressFill{height:100%;width:0;background:#ff6f1f;border-radius:10px;transition:width .2s}.analysisText{color:#c9c3bb;font-size:12px;line-height:1.5}
+#listPanel .panel{top:0;bottom:auto;height:100%;max-height:none;border-radius:0;padding-top:max(20px,env(safe-area-inset-top))}.listSearch{width:100%;height:46px;background:#202329;color:#fff;border-radius:13px;border:1px solid #30343b;padding:0 13px;outline:none;margin:10px 0}.listItem{display:flex;align-items:center;gap:9px;padding:10px 4px;border-bottom:1px solid #292c31}.listNum{width:38px;height:38px;border-radius:50%;background:#272a31;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;flex:none}.listNum.done{background:#078b42}.listNum.skip{background:#7d2c28}.listMain{min-width:0;flex:1}.listMain b{display:block;font-size:12px}.listMain span{display:block;color:#aaa39a;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}.listCount{font-size:10px;color:#ffb48d}
+#detail .panel{max-height:91%}.detailHead{display:flex;gap:12px;align-items:center}.detailCircle{width:54px;height:54px;border-radius:50%;background:#ff6f1f;border:3px solid #f0c21a;display:flex;align-items:center;justify-content:center;font-size:21px;font-weight:bold}.detailInfo{min-width:0}.detailInfo b{font-size:17px}.detailInfo span{display:block;color:#aaa39a;font-size:11px;margin-top:4px}.package{background:#202329;border-radius:13px;padding:10px;margin-top:7px}.package b{font-size:10px;color:#ffb48d}.package span{display:block;font-size:11px;margin-top:4px;line-height:1.35}.package em{display:block;color:#8f8982;font-size:9px;margin-top:4px;font-style:normal}.pkgCode{font-size:14px!important;font-weight:800;color:#f1ede7;letter-spacing:.3px}
+.detailMeta{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin:12px 0 6px}.detailMetaBox{background:#202329;border:1px solid #343941;border-radius:12px;padding:10px 6px;text-align:center}.detailMetaBox b{display:block;font-size:19px;color:#ffb347;font-weight:800}.detailMetaBox span{display:block;color:#aaa39a;font-size:8px;margin-top:3px;font-weight:bold}.detailAddressBox{background:#202329;border-radius:13px;padding:11px;font-size:12px;line-height:1.4;color:#f1ede7;margin:8px 0 4px}.gpsHelp{background:#202329;border:1px solid #30343b;border-radius:13px;padding:10px;margin-top:9px;color:#c9c3bb;font-size:10px;line-height:1.4}.gpsHelp b{color:#ffb48d}
+#editLocal .panel{max-height:50%}
+.infoCard{background:#152238;border:1px solid #2b4265;border-radius:14px;padding:14px 16px;margin:14px 0}
+.infoCard b{display:block;font-size:14px;color:#8fc2ff;margin-bottom:6px}
+.infoCard span{display:block;font-size:13px;color:#cdd8e8;line-height:1.5}
+.templateBtn{display:block;text-align:center;text-decoration:none;background:#2b4265;color:#fff;border:1px solid #3d5a86;font-weight:800;border-radius:14px;padding:14px;margin-bottom:10px}
+.editDivider{text-align:center;color:#8f8982;font-size:11px;font-weight:800;margin:14px 0 8px;text-transform:uppercase;letter-spacing:.4px}
+.searchInput,.coordRow input{width:100%;box-sizing:border-box;background:#202329;border:1px solid #3a3f47;border-radius:12px;color:#fff;padding:12px 14px;font-size:14px;margin-bottom:6px}
+.coordRow{display:flex;gap:8px}.coordRow input{margin-bottom:10px}
+.addrResults{max-height:160px;overflow-y:auto;margin-bottom:6px}
+.addrResult{background:#202329;border:1px solid #3a3f47;border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:12.5px;color:#e6e1d8;line-height:1.4}
+.periodTabs{display:flex;gap:6px;margin:14px 0}
+.periodTab{flex:1;background:#202329;color:#c9c3bb;border:1px solid #3a3f47;border-radius:11px;padding:10px 4px;font-size:11px;font-weight:800}
+.periodTab.active{background:#1976e8;color:#fff;border-color:#3d8fff}
+.repGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.repCard{background:#202329;border:1px solid #3a3f47;border-radius:14px;padding:14px 8px;text-align:center}
+.repCard b{display:block;font-size:20px;color:#ffb347;font-weight:900}
+.repCard span{display:block;font-size:9px;color:#aaa39a;font-weight:800;margin-top:4px;letter-spacing:.3px}
+.repSummary{display:flex;justify-content:space-between;background:#202329;border:1px solid #3a3f47;border-radius:12px;padding:12px;margin-bottom:6px;font-size:12px;color:#c9c3bb}
+.repSummary b{color:#fff}
+.repNote{font-size:10px;color:#8f8982;text-align:center;margin-top:12px;line-height:1.5}
+.historyCard{background:#202329;border:1px solid #3a3f47;border-radius:14px;padding:12px 14px;margin-bottom:8px}
+.historyCard .hDate{font-size:11px;color:#8fc2ff;font-weight:800;margin-bottom:6px}
+.historyCard .hStats{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:#e6e1d8}
+.historyCard .hStats b{color:#ffb347}
+.historyEmpty{text-align:center;color:#8f8982;font-size:13px;padding:30px 10px}
+#gpsHelp .panel{max-height:92%}.diagBox{background:#202329;border:1px solid #343941;border-radius:13px;padding:11px;margin:8px 0;font-size:11px;line-height:1.5}.diagBox b{color:#ffb347}.diagOk{color:#43d17a}.diagErr{color:#ff6961}.diagWarn{color:#ffb347}.stepBox{background:#181a1f;border-radius:13px;padding:11px;margin-top:8px;font-size:11px;line-height:1.55}.stepBox b{color:#fff}.stepBox span{color:#c9c3bb}
+#toast{position:absolute;left:18px;right:18px;bottom:170px;z-index:4000;background:#17191d;color:#fff;border-radius:14px;padding:13px;text-align:center;font-size:12px;display:none;box-shadow:0 7px 30px rgba(0,0,0,.4)}.undoSnackbar{position:absolute;left:18px;right:18px;bottom:170px;z-index:4001;background:#17191d;border:1px solid #343941;color:#fff;border-radius:14px;padding:12px 14px;display:none;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 7px 30px rgba(0,0,0,.45)}.undoSnackbar span{font-size:13px;font-weight:600;flex:1;min-width:0}.undoSnackbar button{background:#ffb347;color:#1a1408;border:0;border-radius:10px;padding:9px 16px;font-weight:900;font-size:12px;white-space:nowrap;flex:none}
+.modalOverlay{position:absolute;inset:0;z-index:5000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:24px}
+.modalCard{background:#191b20;border:1px solid #3a3f47;border-radius:18px;padding:26px 22px;text-align:center;max-width:320px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+.modalCard b{display:block;font-size:22px;color:#f7f3ed;margin-bottom:8px}
+.modalCard span{display:block;font-size:13px;color:#b8b2a9;margin-bottom:18px}
+.modalCard button{background:#078b42;color:#fff;border:0;border-radius:12px;padding:12px 40px;font-weight:900;font-size:15px}
+.lotPanel{position:absolute;left:10px;right:74px;top:calc(max(8px,env(safe-area-inset-top)) + 96px);z-index:900;display:none;align-items:center;gap:6px;background:#17191dee;border:1px solid #3a3f47;border-radius:13px;padding:6px 7px;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.lotNavBtn{flex:none;width:34px;height:34px;border-radius:10px;background:#272a31;color:#fff;border:1px solid #3a3f47;font-size:15px;font-weight:900}
+.lotPanelCenter{flex:1;min-width:0;text-align:center;color:#f7f3ed}
+.lotPanelCenter b{display:block;font-size:9px;color:#ffb48d;font-weight:800;letter-spacing:.3px}
+.lotPanelCenter span{display:block;font-size:13px;font-weight:900;margin-top:1px}
+.lotCloseBtn{flex:none;width:24px;height:24px;border-radius:50%;background:#272a31;color:#c9c3bb;border:1px solid #3a3f47;font-size:13px;line-height:1}
+
+.leaflet-container{font-family:Arial,Helvetica,sans-serif!important;background:#dbe4ea!important}.leaflet-container img,.leaflet-pane img,.leaflet-tile{max-width:none!important;max-height:none!important}.leaflet-control-attribution{font-size:8px!important}
+.markerBillboard{display:flex;align-items:center;justify-content:center;transform:rotate(var(--marker-counter,0deg));width:100%;height:100%;}
+.marker.extra{background:#f0c21a;color:#1a1408;border-color:#fff;font-size:17px}.markerHit{width:100%;height:100%;display:flex;align-items:center;justify-content:center}.marker{width:31px;height:31px;border-radius:50%;background:#123b73;border:3px solid #fff;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.45)}.marker.done{background:#78d99a;color:#123b27}.marker.skip{background:#d9342b}.marker.next{width:39px;height:39px;background:#078b42;border:3px solid #f0c21a;font-size:14px}.marker.multi{font-size:9px}.compassControl.active{background:#078b42!important;box-shadow:0 0 0 2px #f0c21a inset}.onewayControl.active{background:#078b42!important}.lotControl{background:#8a5a1a!important}.businessControl.active{background:#078b42!important;box-shadow:0 0 0 2px #f0c21a inset}
+.marker.isBusiness{background:#d9342b!important;box-shadow:0 0 0 2px #fff,0 2px 8px rgba(0,0,0,.5)}
+.businessToggleBtn{background:#202329;color:#c9c3bb;border:1px solid #3a3f47;font-weight:800;margin-top:8px}
+.businessToggleBtn.active{background:#1976e8;color:#fff;border-color:#3d8fff}
+.priorityBtn{background:#202329;color:#c9c3bb;border:1px solid #3a3f47;font-weight:800;margin-top:8px}
+.priorityBtn.active{background:#8a5a1a;color:#fff;border-color:#c48a3a}#map.map-3d{overflow:hidden}#map.map-3d .leaflet-container{transform-origin:50% 58%;transform:perspective(900px) rotateX(48deg);will-change:transform}.car{font-size:27px;filter:drop-shadow(0 2px 2px #fff)}
+@media(max-width:520px){.brand{min-width:103px}.brand b{font-size:13px}.stat strong{font-size:14px}.stat{padding:7px 2px}.tool{width:47px;height:47px}.nextTitle{font-size:13px}}
+
+.packageHeader{margin:10px 0 8px;padding:10px 12px;border-radius:10px;background:#eef5ff;border:1px solid #cbdcf5;display:flex;flex-direction:column;gap:3px}.packageHeader b{font-size:13px;color:#173a68}.packageHeader span{font-size:11px;color:#53657b}.extraPackage{border-left:4px solid #f39c12;background:#fff8ea}
+@media (orientation:landscape) and (max-width:900px){#topbar{left:8px;right:62px}.stat{min-width:52px;padding:6px 4px}.stat strong{font-size:16px}#menuBtn{width:42px;height:42px}.tool{width:44px;height:44px}#tools{top:calc(max(8px,env(safe-area-inset-top)) + 50px);right:8px}.statusRow{top:calc(max(8px,env(safe-area-inset-top)) + 50px);left:8px;right:62px}#gpsStatus{max-width:150px}}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="map"></div><div id="mapStatus">Carregando mapa...</div>
+<div id="topbar"><div class="brand"><b>Roterisador</b><span>ROTA DE ENTREGAS</span></div><div class="statbar"><div class="stat"><small>PACOTES</small><strong id="statPackages">0</strong></div><div class="stat"><small>PARADAS</small><strong id="statStops">0</strong></div><div class="stat"><small>ENTREGUES</small><strong id="statDone">0</strong></div><div class="stat"><small>FALTA</small><strong id="statLeft">0</strong></div></div><button id="menuBtn">☰</button></div>
+<input id="search" placeholder="🔎 Buscar parada, código ou endereço">
+<div id="statusRow" class="statusRow"><div id="gpsStatus" class="gpsTap">📍 TOQUE NO GPS PARA ATIVAR</div><div id="timerWidget" class="timerWidget">⏱ <span id="time">00:00:00</span></div></div>
+<div id="tools"><button class="tool" id="gpsBtn">◎</button><button class="tool" id="layerBtn">◈</button><button class="tool" id="fullBtn">⛶</button><button class="tool" id="timerBtn" title="Iniciar cronômetro" aria-label="Iniciar cronômetro">▶</button><button class="tool mapRotateBtn" id="rotateBtn" title="Girar mapa 45 graus" aria-label="Girar mapa 45 graus">↻</button><button class="tool compassControl" id="compassBtn" title="Ativar bússola (navegação 3D travada no carro)" aria-label="Ativar bússola">🧭</button><button class="tool onewayControl" id="onewayBtn" title="Mostrar sentido das ruas" aria-label="Mostrar sentido das ruas">↔</button><button class="tool lotControl" id="lotBtn" title="Priorizar lote atual (reorganiza por proximidade)" aria-label="Priorizar lote atual">📦</button><button class="tool businessControl" id="businessBtn" title="Mostrar só endereços comerciais marcados" aria-label="Filtrar empresas">🏢</button></div>
+<div id="bottom"><div id="bottomHeader"><span class="routeState" id="routeState">N°: — • P.E: —</span></div><div id="nextCard"><div class="stopBadge" id="nextNum">1</div><div class="nextText"><div class="nextTitle" id="nextTitle">Parada 1 • Ordem 1</div><div class="nextAddr" id="nextAddr">Rua —, nº —</div></div><div class="nextPk" id="nextPk">0 pacotes</div></div><div class="actions"><button class="action deliver" id="deliverBtn">✓ ENTREGUE</button><button class="action navigate" id="navigateBtn">➤ IR ATÉ O LOCAL</button><button class="action skip" id="skipBtn">× ANULAR</button></div></div>
+
+<div id="menu"><div class="panel"><button class="close" data-close="menu">×</button><h2>Menu do Roterisador</h2><div class="sub">Ferramentas e configuração da rota</div><div class="menuGrid"><button class="menuItem" id="menuImport"><b>📂 Carregar lista</b><span>Excel, XLS ou CSV</span></button><button class="menuItem" id="menuList"><b>☰ Ver entregas</b><span>Lista completa e busca</span></button><button class="menuItem" id="menuGps"><b>◎ GPS</b><span>Ativar localização e mostrar o carro</span></button><button class="menuItem" id="menuCenter"><b>⌾ Centralizar</b><span>Voltar para a rota</span></button><button class="menuItem" id="menuNav"><b>➤ Navegação</b><span id="navChoice">HERE WeGo Beta</span></button><button class="menuItem" id="menuReports"><b>📊 Desempenho e Economia</b><span>Km, tempo, combustível, taxa de sucesso</span></button><button class="menuItem" id="menuHistory"><b>🕓 Histórico de Entregas</b><span>Rotas concluídas anteriormente</span></button><button class="menuItem" id="menuClear"><b>♻ Limpar rota</b><span>Apaga a lista salva</span></button></div><button class="bigBtn darkBtn" data-close="menu">FECHAR</button></div></div>
+
+<div id="summary"><div class="panel"><h2>Lista carregada</h2><div class="sub" id="summaryText">Confira os dados antes de iniciar.</div><div class="summaryNumbers"><div class="summaryBox"><b id="summaryPackages">0</b><span>PACOTES</span></div><div class="summaryBox"><b id="summaryStops">0</b><span>PARADAS</span></div></div><button class="bigBtn greenBtn" id="startRoute">▶ INICIAR ROTA</button><button class="bigBtn darkBtn" data-close="summary">VOLTAR AO MAPA</button></div></div>
+
+<div id="analysis"><div class="panel"><h2>Analisando rota</h2><div class="sub">O Roterisador está conferindo endereços, coordenadas e sequência.</div><div id="progressBar"><div class="progressFill" id="progressFill"></div></div><div class="analysisText" id="analysisText">Preparando...</div></div></div>
+
+<div id="listPanel"><div class="panel"><button class="close" data-close="listPanel">×</button><h2>Entregas</h2><div class="sub" id="listSubtitle">0 paradas</div><input class="listSearch" id="listSearch" placeholder="Buscar..."><div id="list"></div></div></div>
+
+<div id="detail"><div class="panel"><button class="close" data-close="detail">×</button><div class="detailHead"><div class="detailCircle" id="detailNum">1</div><div class="detailInfo"><b id="detailTitle">Parada 1 • Ordem 1</b><span id="detailAddress"></span></div></div><div class="detailMeta"><div class="detailMetaBox"><b id="detailStopMeta">1</b><span>PARADA Nº</span></div><div class="detailMetaBox"><b id="detailSeqMeta">—</b><span>ORDEM Nº</span></div><div class="detailMetaBox"><b id="detailPkMeta">0</b><span>PACOTES</span></div></div><div id="detailPackages"></div><button class="bigBtn businessToggleBtn" id="detailBusiness">🏢 MARCAR COMO ENDEREÇO COMERCIAL</button><button class="bigBtn priorityBtn" id="detailPriority">🎯 IR AGORA (prioridade)</button><button class="bigBtn blueBtn" id="detailNavigate">➤ IR ATÉ O LOCAL</button><button class="bigBtn" id="detailChange">📍 MUDAR O LOCAL</button><button class="bigBtn greenBtn" id="detailDeliver">✓ ENTREGUE</button><button class="bigBtn redBtn" id="detailSkip">× ANULAR</button></div></div>
+<div id="gpsHelp"><div class="panel"><button class="close" data-close="gpsHelp">×</button><h2>GPS bloqueado</h2><div class="sub">O Roterisador consegue usar o GPS, mas o navegador está recusando o acesso.</div><div class="diagBox" id="gpsDiag">Verificando as permissões...</div><div class="stepBox"><b>📱 No Android</b><br><span>Configurações → Aplicativos → Chrome ou Opera → Permissões → Localização → <b>Permitir durante o uso do app</b>.</span></div><div class="stepBox"><b>🌐 No Chrome</b><br><span>Abra o Roterisador pelo endereço HTTPS do Blogger. Toque no ícone à esquerda do endereço → Permissões → Localização → Permitir. Depois recarregue a página.</span></div><div class="stepBox"><b>🌐 No Opera</b><br><span>Primeiro permita Localização para o aplicativo Opera nas configurações do Android. Depois, na página do Roterisador, abra as informações/permissões do site e permita Localização, se essa opção aparecer.</span></div><button class="bigBtn blueBtn" id="gpsRetry">📍 TENTAR GPS NOVAMENTE</button><button class="bigBtn darkBtn" data-close="gpsHelp">FECHAR</button></div></div>
+<div id="editLocal"><div class="panel"><button class="close" data-close="editLocal">×</button><h2>Mudar local da entrega</h2><div class="sub">Escolha como definir o novo ponto exato desta entrega.</div>
+<button class="bigBtn greenBtn" id="confirmLocal">📍 USAR POSIÇÃO ATUAL DO GPS</button>
+<div class="editDivider">ou busque um endereço</div>
+<input type="text" id="addrSearchInput" class="searchInput" placeholder="Digite um endereço, rua ou ponto de referência...">
+<div id="addrSearchResults" class="addrResults"></div>
+<div class="editDivider">ou informe coordenadas exatas (lat, lng)</div>
+<div class="coordRow"><input type="text" id="manualLat" inputmode="decimal" placeholder="Latitude (ex: -22.9068)"><input type="text" id="manualLng" inputmode="decimal" placeholder="Longitude (ex: -43.1729)"></div>
+<button class="bigBtn blueBtn" id="confirmManualCoord">USAR ESTAS COORDENADAS</button>
+<button class="bigBtn darkBtn" id="cancelLocal">CANCELAR</button></div></div>
+<div id="importInfo"><div class="panel"><button class="close" data-close="importInfo">×</button><h2>Carregar lista</h2><div class="infoCard"><b>📋 Padronização de Arquivos</b><span>Para importar seus produtos de qualquer plataforma (Mercado Livre, TikTok, Shopee, Amazon), certifique-se de que sua lista siga o nosso modelo padrão.</span></div><button class="bigBtn blueBtn" id="pickFileBtn">📁 Selecionar arquivo</button><button class="bigBtn darkBtn" data-close="importInfo">CANCELAR</button></div></div>
+<div id="reports"><div class="panel"><button class="close" data-close="reports">×</button><h2>📊 Desempenho e Economia</h2>
+<div class="periodTabs"><button class="periodTab active" data-period="hoje">Hoje</button><button class="periodTab" data-period="7d">Últimos 7 dias</button><button class="periodTab" data-period="mes">Mês atual</button></div>
+<div class="repGrid">
+  <div class="repCard"><b id="repKm">0,0</b><span>KM RODADOS</span></div>
+  <div class="repCard"><b id="repTime">00:00:00</b><span>TEMPO DE ROTA</span></div>
+  <div class="repCard"><b id="repSuccess">0%</b><span>TAXA DE SUCESSO</span></div>
+  <div class="repCard"><b id="repFuelCost">R$ 0,00</b><span>COMBUSTÍVEL ESTIMADO</span></div>
+</div>
+<div class="repSummary"><span>✓ <b id="repDone">0</b> entregues</span><span>— <b id="repPending">0</b> pendentes</span><span>× <b id="repSkipped">0</b> anuladas</span></div>
+<div class="editDivider">para estimar o combustível</div>
+<div class="coordRow"><input type="text" id="fuelKmL" inputmode="decimal" placeholder="Consumo (km/l), ex: 10"><input type="text" id="fuelPrice" inputmode="decimal" placeholder="Preço combustível (R$/l)"></div>
+<button class="bigBtn blueBtn" id="saveFuelSettings">SALVAR E RECALCULAR</button>
+<div class="repNote">O histórico de km/dias começa a contar a partir desta atualização do app — dias anteriores não ficaram registrados.</div>
+</div></div>
+<div id="historyPanel"><div class="panel"><button class="close" data-close="historyPanel">×</button><h2>🕓 Histórico de Entregas</h2><div class="sub">Rotas concluídas anteriormente neste aparelho.</div><div id="historyList"></div></div></div>
+<div id="help"><div class="panel"><button class="close" data-close="help">×</button><h2>Como usar</h2><div class="sub">Fluxo do Roterisador</div><p class="analysisText">1. Carregue a planilha da Shopee/SPX.<br><br>2. O sistema analisa os dados e mostra a quantidade de pacotes e paradas.<br><br>3. Inicie a rota. O número da Parada vem da coluna Stop. Se o mesmo Stop aparecer em endereços diferentes, cada endereço vira um ponto separado no mapa, mantendo o mesmo número de Parada.<br><br>4. Toque numa parada para ver os pacotes daquele endereço. A Ordem vem da coluna Sequence.<br><br>5. Use ENTREGUE ou ANULAR. O centro e o zoom do mapa são preservados.<br><br>6. Use IR ATÉ O LOCAL para abrir o navegador escolhido.<br><br>7. Para mostrar o carro, use o GPS. A V15 é particular e tenta usar a localização mesmo quando aberta como arquivo local. Se o navegador bloquear o arquivo, a tela de diagnóstico mostrará a causa.</p><button class="bigBtn darkBtn" data-close="help">FECHAR</button></div></div>
+<div id="toast"></div>
+<div id="undoSnackbar" class="undoSnackbar"><span id="undoSnackbarText"></span><button id="undoSnackbarBtn">DESFAZER</button></div>
+<div id="routeDoneModal" class="modalOverlay" style="display:none"><div class="modalCard"><b>🏁 Fim da entrega</b><span>Rota concluída — parabéns pelo trabalho!</span>
+<div class="repGrid">
+  <div class="repCard"><b id="doneTotalPk">0</b><span>TOTAL DE PACOTES</span></div>
+  <div class="repCard"><b id="doneTotalStops">0</b><span>TOTAL DE PARADAS</span></div>
+  <div class="repCard"><b id="doneTotalTime">00:00:00</b><span>TEMPO TOTAL</span></div>
+  <div class="repCard"><b id="doneTotalKm">0,0 km</b><span>KM PERCORRIDOS</span></div>
+</div>
+<button id="routeDoneOk">Ok</button></div></div>
+<div id="lotPanel" class="lotPanel">
+  <button id="lotPrevBtn" class="lotNavBtn" aria-label="Lote anterior">◀</button>
+  <div class="lotPanelCenter"><b>Lote atual</b><span>Paradas <span id="lotRangeLabel">0–9</span></span></div>
+  <button id="lotNextBtn" class="lotNavBtn" aria-label="Próximo lote">▶</button>
+  <button id="lotExtrasBtn" class="lotNavBtn" title="Priorizar pacotes extras (sem número)" aria-label="Priorizar extras">📎</button>
+  <button id="lotCloseBtn" class="lotCloseBtn" aria-label="Fechar">×</button>
+</div>
+<input id="file" type="file" accept=".xlsx,.xls,.csv" style="display:none">
+</div>
+<script>
+'use strict';
+/* ===== V16 — mudanças em relação à V15 =====
+   1) BUG CRÍTICO CORRIGIDO: a função rotateScreenDelta() era usada para
+      arrastar o mapa com 1 dedo mas nunca existia no código da V15 — todo
+      arraste travava com um erro silencioso. Agora ela existe e compensa
+      corretamente a rotação visual do mapa.
+   2) NOVO: gesto de 2 dedos único, tipo Google Maps — girar e ampliar/reduzir
+      ao mesmo tempo, ancorado no ponto entre os dedos (map.setZoomAround).
+   3) touch-action:none no mapa e na página, para o navegador não competir
+      com os gestos (evita zoom/scroll nativos "roubando" o toque).
+   4) zoomSnap:0.25 para o zoom por pinça ser suave, sem saltos.
+   5) Durante o gesto, só a parte visual (CSS) é atualizada a cada frame;
+      o recálculo pesado (tamanho do mapa e rota via internet) só acontece
+      uma vez, ao soltar os dedos — evita travar o app girando/ampliando.
+   ---- ajustes extras ----
+   6) CORRIGIDO: o modo 3D girava o mapa para o lado errado do rumo do carro
+      (sinal invertido). Agora "para frente" sempre aponta pra cima na tela,
+      como um GPS de verdade, com uma transição suave entre as leituras do GPS.
+   7) O zoom com 2 dedos agora também funciona de forma confiável no modo 3D
+      (usa o centro do mapa como âncora nesse modo, pois a inclinação extra
+      de perspectiva impede calcular o ponto exato do dedo).
+   8) O texto "N°: ... • N° P x E: ..." no rodapé ficou com fonte 2x maior.
+   9) Ao voltar de um app de navegação externo (depois de tocar em
+      "IR ATÉ O LOCAL"), se a tela cheia estava ativada antes, o app tenta
+      reativá-la automaticamente.
+   ---- pedido do usuário (bússola + setas de sentido) ----
+   10) O carro deixou de ser um ponto azul e virou uma seta de navegação que
+       gira conforme o rumo do GPS. Como ela fica dentro do próprio mapa
+       (que já gira sozinho no modo 3D), no 3D ela fica sempre apontando
+       "para cima/frente" (como um GPS de verdade); no modo normal (2D) ela
+       mostra o rumo real, tipo uma bússola.
+   11) No modo 3D, o mapa agora também acompanha (recentra) a posição do
+       carro continuamente, e não só na primeira leitura do GPS — só não
+       fica brigando com o dedo se o usuário estiver arrastando o mapa.
+   12) NOVO botão "↔" (setas de sentido): busca no OpenStreetMap (Overpass
+       API) as ruas visíveis na tela e desenha setas mostrando se cada uma
+       é mão única (vermelha, no sentido certo) ou mão dupla (cinza, seta
+       dupla). Precisa de internet e de aproximar o mapa (zoom alto) para
+       funcionar bem; atualiza sozinho ao mover/dar zoom no mapa.
+============================================= */
+/* ===== V17 — mudanças em relação à V16 =====
+   1) Botão único de bússola 🧭 no lugar do texto "2D/3D": desligado = mapa
+      2D livre; ligado = navegação 3D travada no carro, girando com o rumo.
+   2) Orientação por VETOR DA ROTA: além do heading do GPS (que pode oscilar
+      ou faltar), o mapa agora também usa o ângulo do trecho da linha azul
+      mais perto do carro para girar — fica mais estável e sempre "reto pra
+      frente", como pedido.
+   3) Setas de sentido das ruas (↔): corrigido um bug real no cálculo da área
+      de busca (usava map.getBounds(), que fica maior que a tela quando o
+      mapa está girado, gerando consultas pesadas demais ao OpenStreetMap
+      que podiam falhar em silêncio). Agora usa um raio fixo ao redor do
+      centro do mapa, e as setas ficaram maiores e com fundo colorido
+      (vermelho = mão única, cinza = mão dupla) para aparecer de verdade.
+      Também passou a avisar com um toast se a busca falhar (antes falhava
+      calado). IMPORTANTE: o motor de rotas (OSRM) já respeita contramão por
+      conta própria — isso é do próprio serviço público de rotas, não é algo
+      que o app controle; não é possível "forçar" isso por fora.
+   4) Removidos os toasts de confirmação ao tocar em ENTREGUE/ANULAR — a
+      ação agora só atualiza o painel e o contador, sem mensagem por cima.
+   5) Corrigido bug real no leitor de endereço: nomes de rua com datas (ex.:
+      "Rua 5 de Abril", "Avenida 15 de Novembro") não são mais confundidos
+      com o número da casa. Agora prioriza o número depois da vírgula e
+      ignora padrões "número + de + palavra" no nome da rua.
+   6) Corrigido o mapa sumindo (tela cinza) ao dar zoom máximo: faltava
+      maxNativeZoom nas camadas de mapa. Acima do zoom real do servidor
+      (19), o Leaflet agora amplia a última imagem em vez de mostrar nada.
+   7) Conferido: o botão "IR ATÉ O LOCAL" já envia coordenadas exatas
+      (lat,lng) para HERE WeGo/Waze/Google Maps, não texto de endereço —
+      esse ponto já estava correto, nenhuma mudança necessária.
+============================================= */
+/* ===== V18 — mudanças em relação à V17 =====
+   1) Bug real corrigido nas setas da ROTA: o espaçamento contava número de
+      vértices (a rota do OSRM tem poucos pontos em ruas retas — podia não
+      desenhar NENHUMA seta). Agora coloca uma seta a cada ~70m percorridos,
+      sempre.
+   2) Bug real corrigido na ROTAÇÃO dessas mesmas setas: a fórmula antiga
+      cancelava a própria rotação do mapa, deixando as setas erradas quando
+      a bússola estava girando o mapa. Agora giram junto com o mapa, como a
+      seta do carro.
+   3) Orientação por vetor da rota simplificada e mais estável: como o OSRM
+      recalcula a rota a partir da posição atual do carro a cada leitura do
+      GPS, o próprio início da rota já está "ancorado" nele — então usamos
+      os primeiros ~18m dela para o ângulo, em vez de procurar o "trecho
+      mais próximo" (que tremia perto de curvas e cruzamentos).
+   4) A rota agora também é redesenhada na hora ao marcar ENTREGUE/ANULAR,
+      sem esperar a próxima leitura do GPS.
+   5) Setas de mão única/dupla: lógica conferida (usa a direção real da via
+      no OpenStreetMap). Sobre o OSRM "respeitar contramão": isso é do
+      próprio motor de rotas público (perfil /driving/, que já é o de
+      carro) — não é algo ajustável por fora; já está configurado certo.
+   6) NOVO módulo separado — "Priorizar lote atual" (📦): identifica a
+      dezena de paradas em que você está agora (ex.: 60–69) e reorganiza só
+      a ordem ENTRE as pendentes desse lote por proximidade ao carro, pra
+      evitar passar na frente de uma parada do mesmo lote sem entregar.
+      Não mexe em nada fora do lote nem na lógica de setas/rota.
+============================================= */
+/* ===== V19 — mudanças em relação à V18 =====
+   1) Removidas as setas azuis de cima da linha da rota — ela fica limpa e
+      contínua. O sentido de circulação agora é mostrado só pelas setas
+      sutis pretas das vias (botão ↔), separado da navegação.
+   2) Módulo de lote reescrito: agora pergunta qual dezena priorizar (em vez
+      de só adivinhar pela parada mais próxima), filtra estritamente pelo
+      número da PARADA, e desenha uma pré-visualização (linha roxa
+      pontilhada) do caminho cobrindo TODAS as paradas do lote na nova
+      ordem — sem mexer na navegação turno-a-turno normal.
+   3) Setas de sentido das vias: agora usam cache local (localStorage, por
+      região de ~1,1km, válido por 1 dia) — funcionam mesmo sem internet
+      depois da primeira vez, e uma falha de rede não mostra mais alerta
+      nenhum na tela (fica silenciosa; se já havia algo em cache, continua
+      mostrando).
+============================================= */
+/* ===== V20 — mudanças em relação à V19 =====
+   1) Painel de lote sem prompt(): o botão 📦 agora abre um painel flutuante
+      com "Lote atual: Paradas X–Y" e botões ◀ ▶ pra navegar entre dezenas
+      na hora, sem digitar nada. Cada toque já reorganiza e recalcula tudo.
+   2) Botão ENTREGUE/ANULAR virou alternador: tocar de novo desfaz na hora.
+      Também aparece um aviso com botão "DESFAZER" por 5s depois da ação.
+   3) Cronômetro (00:00:00) e quantidade de pacotes no cartão inferior com
+      fonte bem maior, pra ler rápido dirigindo.
+   4) Sigla do cabeçalho simplificada: "N° P x E:" virou "P.E:", com o
+      primeiro número da lista prefixado (ex.: "P.E: P10 / 11 / (-)").
+   5) BUG REAL corrigido nas setas de sentido das ruas: o símbolo de texto
+      "➤" aponta pra DIREITA por padrão na maioria das fontes, não pra cima
+      — por isso as setas pareciam giradas/erradas. Trocado por SVG próprio
+      desenhado apontando pra cima (mesma lógica da seta do carro). Também
+      passaram a aparecer automaticamente (zoom ≥16), sem precisar apertar
+      o botão primeiro — ele agora só liga/desliga.
+   6) HERE WeGo → HERE WeGo Beta: pacote do Android atualizado
+      (com.here.app.maps.beta) com fallback nativo geo: caso não responda.
+   7) Reconfirmado: o OSRM (perfil /driving/) já respeita oneway/contramão
+      nativamente — não é algo ajustável por fora do motor de rotas.
+============================================= */
+const STORE='roterisadorGPS_v26', $=id=>document.getElementById(id);
+/* ===== V26 — mudanças em relação à V25 =====
+   1) NOVO: "Lote Extras" (📎 no painel de lote) — prioriza só os pacotes
+      sem número de parada, com a mesma reorganização por proximidade.
+   2) NOVO: "🎯 IR AGORA" no painel da parada — prioridade temporária pra
+      QUALQUER parada específica, furando lote/sequência/filtro de empresa.
+      Ao concluir (ou tocar de novo pra cancelar), volta sozinho pro fluxo
+      anterior.
+   3) Endereços comerciais: agora com detecção AUTOMÁTICA por palavras-chave
+      (LTDA, ME, EIRELI, Loja, Mercado, Farmácia, Sala 302, etc.) no
+      endereço/nome/complemento da planilha, além da marcação manual (🏢).
+      Marcador fica vermelho quando identificado como comercial.
+   4) Cronômetro contínuo: sem botão de pausa — só inicia, e só para
+      sozinho quando a rota termina de verdade (ou ao importar lista nova).
+   5) NOVO: modal "🏁 Fim da entrega" com resumo completo (pacotes, paradas,
+      tempo, km), confete e som de comemoração (tudo gerado no código, sem
+      depender de nenhuma biblioteca externa) — e fica salvo no novo
+      "🕓 Histórico de Entregas" do menu.
+   6) Cronômetro movido pro topo (ao lado de "CARRO LOCALIZADO"), e saiu do
+      card inferior — que ganhou o espaço pra aumentar bem o destaque de
+      pacotes.
+   7) Removido o botão de baixar planilha modelo da tela de importação
+      (revertendo o que eu tinha adicionado antes), como pedido agora.
+   ---- observação ----
+   - O motor de rotas (OSRM, perfil /driving/) já respeita mão única/
+     contramão nativamente — reconfirmado mais uma vez, não é algo
+     ajustável por fora do motor público de rotas.
+============================================= */
+/* ===== V25 — mudanças em relação à V24 =====
+   1) BUG REAL CORRIGIDO: os números das paradas giravam junto com o mapa
+      (bússola/gesto) e ficavam de cabeça pra baixo. O mecanismo de "ficar
+      sempre em pé" já existia, mas só recalculava quando os marcadores
+      eram recriados — girar o mapa não atualizava. Agora é uma variável
+      CSS compartilhada, atualizada a cada frame (barata) e herdada por
+      todos os números automaticamente. Sempre legíveis, girando ou não.
+   2) Busca de endereço + coordenadas manuais na tela "Mudar local": além
+      do GPS atual, agora dá pra buscar um endereço (via OpenStreetMap
+      Nominatim, gratuito) ou digitar latitude/longitude direto. Plus
+      Codes NÃO foram implementados — ver observação abaixo.
+   3) Endereços comerciais: marcação manual (🏢, no painel da parada) +
+      botão de filtro na barra lateral pra mostrar só empresas marcadas.
+   4) Removido o botão duplicado de carregar lista (📂 flutuante) — acesso
+      único pelo menu agora, como pedido.
+   5) Nova tela de importação: aviso de padronização + botão de baixar
+      planilha modelo (.xlsx) antes de escolher o arquivo, e validação real
+      de cabeçalho (mensagem de erro exata se a estrutura não bater).
+   6) Novo painel "📊 Desempenho e Economia" no menu: km rodados, tempo de
+      rota, taxa de sucesso, resumo de status e estimativa de combustível
+      (a partir do consumo e preço informados), com abas Hoje/7 dias/Mês.
+   ---- observações importantes ----
+   - Places API (Google/HERE/Mapbox) e detecção automática de endereço
+     comercial exigem chave de API paga que não tenho — troquei a busca
+     por Nominatim (gratuito) e a identificação de empresa por marcação
+     manual, que servem ao mesmo objetivo sem custo.
+   - Plus Codes: tentei implementar o decodificador duas vezes e sem
+     internet pra validar contra exemplos reais, ambas deram coordenadas
+     visivelmente erradas (uma no hemisfério errado). Preferi não enviar
+     nada a arriscar mandar o motorista pro lugar errado.
+   - O histórico de km/dias do painel de relatórios começa a contar a
+     partir desta atualização — não há como recuperar dias anteriores.
+============================================= */
+/* ===== V24 — mudanças em relação à V23 =====
+   1) Bipe curto de confirmação ao marcar ENTREGUE (som mais agudo) e
+      ANULAR (som mais grave) — gerado na hora via Web Audio API, sem
+      precisar de nenhum arquivo de áudio externo.
+   2) Simplificado o alternador do botão ENTREGUE/ANULAR: tirada a
+      mensagem/snackbar com botão "DESFAZER" que aparecia na tela. Agora é
+      só: 1º toque marca, 2º toque no mesmo botão desfaz na hora — sem
+      etapa intermediária nenhuma.
+============================================= */
+/* ===== V23 — mudanças em relação à V22 =====
+   1) BUG REAL CORRIGIDO: selecionar um lote (ex.: 70–79) só reorganizava a
+      ordem DENTRO daquele intervalo, mas firstPending() continuava
+      vasculhando o array inteiro pra achar a "próxima parada" — por isso
+      voltava pra Parada 1, fora do lote escolhido. Agora existe um filtro
+      de "lote ativo" de verdade: enquanto ativo, tanto o card inferior
+      quanto o cálculo da rota só consideram paradas DENTRO do lote.
+   2) O lote ativo agora é salvo (localStorage) e sobrevive a trocar de
+      tela/app e voltar — antes resetava toda vez.
+   3) O botão de lote virou um alternador de verdade: apertar de novo
+      DESATIVA o filtro e volta pro modo de rota normal (antes só escondia
+      o painel, mas o filtro ambíguo continuava por baixo).
+   4) Bônus: se todas as paradas de um lote ativo forem concluídas, o filtro
+      desativa sozinho e volta pro modo normal, avisando o motorista.
+============================================= */
+/* ===== V22 — mudanças em relação à V21 =====
+   1) Setas de sentido simplificadas de vez: agora só aparece seta em ruas
+      de MÃO ÚNICA confirmada. Mão dupla (a maioria das ruas) não mostra
+      mais símbolo nenhum — isso elimina o glifo de "par de triângulos"
+      que estava confundindo, e deixa a tela bem menos poluída.
+   2) HERE WeGo corrigido de vez: depois de errar 2 nomes de pacote
+      diferentes nas versões anteriores, paramos de adivinhar. Agora usa o
+      link https://share.here.com puro (sem intent://) — o Android resolve
+      sozinho pra qualquer variante do HERE instalada (normal ou Beta),
+      via App Links, sem precisar acertar pacote nenhum.
+   3) BUG ENCONTRADO: as tags de instalação como app (PWA) já existiam no
+      arquivo desde a V15, mas apontavam pra um manifest.json e ícones que
+      nunca foram criados de verdade — por isso "instalar app" nunca
+      funcionava. Agora manifest.json, icon-192.png, icon-512.png e
+      icon-512-maskable.png existem de verdade (seguem juntos com o HTML).
+============================================= */
+/* ===== V21 — mudanças em relação à V20 =====
+   1) BUG CORRIGIDO: HERE WeGo Beta abria a Play Store dizendo "item não
+      encontrado" — o pacote 'com.here.app.maps.beta' usado na V20 não
+      existe de verdade. O app, mesmo instalado pelo canal Beta da Play
+      Store, usa o pacote de sempre (com.here.app.maps). Corrigido.
+   2) Setas de sentido das ruas: reescritas com rotação NATIVA do SVG (era
+      CSS num <div> por fora) — mais robusto contra qualquer bug de
+      herança. Também ficaram menores (13px), mais transparentes e mais
+      espaçadas (a cada 120m), bem mais discretas.
+   3) Removido o botão ⌾ (centralizar) da barra lateral — não fazia nada
+      perceptível na prática, já que a bússola/navegação recentraliza
+      sozinha.
+   4) Painel "Lote atual" subiu pra logo abaixo dos contadores (em vez de
+      flutuar no meio do mapa) e ficou mais compacto.
+   5) Indicador superior dividido: ENTREGUES e FALTA lado a lado.
+   6) Marcador de pacote extra agora é amarelo (era laranja). Confirmado:
+      esses pacotes já não eram roteados automaticamente — o motorista
+      sempre podia escolher clicar neles quando quisesse.
+   7) Modal "Fim das entregas" com botão Ok, aparece quando não sobra
+      nenhuma parada pendente na rota.
+   8) Meta tags anti-cache adicionadas (evita o navegador servir uma
+      versão antiga do arquivo depois de uma atualização).
+============================================= */
+const STORE_LEGACY=['roterisadorGPS_v25','roterisadorGPS_v24','roterisadorGPS_v23','roterisadorGPS_v22','roterisadorGPS_v21','roterisadorGPS_v20','roterisadorGPS_v19','roterisadorGPS_v18','roterisadorGPS_v17','roterisadorGPS_v16','roterisadorGPS_v15','roterisadorGPS_v14','roterisadorGPS_v13','roterisadorGPS_v12','roterisadorGPS_v11','roterisadorGPS_v10','roterisadorGPS_v9','roterisadorGPS_v8','roterisadorGPS_v23','roterisadorGPS_v22','roterisadorGPS_v17'];
+let map=null,tile=null,satellite=null,markers=[],routeLayer=null,routeGeom=null,arrowMarkers=[],carMarker=null,editMarker=null,watchId=null;
+let onewayOn=true,onewayLayer=null,onewayRequest=0,onewayDebounce=null,lotPreviewLayer=null;
+let lotModeActive=false,lotModeLo=null;
+let manualTargetId=null;
+let businessFilterActive=false;
+let stops=[],selected=null,gps={lat:null,lng:null,accuracy:null,heading:null},gpsOn=false,routeRequest=0,startTime=0,timer=null,timerElapsed=0,timerRunning=false,nav='here',localEdit=false;
+let mapAngle=0, map3D=false, autoHeading=false, lastGpsPoint=null;
+const OSRM='https://router.project-osrm.org/route/v1/driving/';
+const LEAFLET=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.js','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'];
+const LEAFLET_CSS=['https://unpkg.com/leaflet@1.9.4/dist/leaflet.css','https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'];
+const XLSX_SRC=['https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js','https://cdn.jsdelivr.net/npm/xlsx@0.20.3/dist/xlsx.full.min.js'];
+function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+function norm(s){return String(s??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();}
+function num(v){if(v===null||v===undefined||v==='')return null;const n=Number(String(v).replace(',','.'));return Number.isFinite(n)?n:null}
+function col(o,names){const keys=Object.keys(o);for(const n of names){const k=keys.find(x=>norm(x)===norm(n));if(k!==undefined&&o[k]!==''&&o[k]!==null)return o[k]}return ''}
+function toast(t,ms=2400){$('toast').textContent=t;$('toast').style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>$('toast').style.display='none',ms)}
+function showUndoSnackbar(text,onUndo){
+ const el=$('undoSnackbar');
+ $('undoSnackbarText').textContent=text;
+ el.style.display='flex';
+ clearTimeout(showUndoSnackbar.t);
+ showUndoSnackbar.t=setTimeout(()=>{el.style.display='none'},5000);
+ $('undoSnackbarBtn').onclick=()=>{
+   el.style.display='none';
+   clearTimeout(showUndoSnackbar.t);
+   onUndo();
+ };
+}
+function show(id){$(id).style.display='block'} function hide(id){$(id).style.display='none'}
+function closeAll(){['menu','summary','analysis','listPanel','detail','editLocal','help','gpsHelp','importInfo','reports','historyPanel'].forEach(hide)}
+let gpsWanted=false;
+let fullscreenWanted=false;
+let userGestureActive=false;
+function save(){
+ const view=map?{lat:map.getCenter().lat,lng:map.getCenter().lng,z:map.getZoom(),rotation:mapAngle}:null;
+ const uiState={detail:!!selected&&document.getElementById('detail')?.style.display==='block',menu:document.getElementById('menu')?.style.display==='block',list:document.getElementById('listPanel')?.style.display==='block'};
+ localStorage.setItem(STORE,JSON.stringify({stops,selectedId:selected?.id||null,startTime,timerElapsed,timerRunning,nav,gpsWanted,fullscreenWanted,mapView:view,uiState,coordCorrections:window.coordCorrections||{},map3D,autoHeading,lotModeActive,lotModeLo,manualTargetId}))
+}
+function validCoord(lat,lng){return Number.isFinite(Number(lat))&&Number.isFinite(Number(lng))&&Number(lat)>=-90&&Number(lat)<=90&&Number(lng)>=-180&&Number(lng)<=180}
+function cleanKey(raw){return norm(raw).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim()}
+function addressKey(s){
+ const raw=typeof s==='string'?s:[s?.address,s?.bairro,s?.city,s?.zip].filter(Boolean).join(' ');
+ return cleanKey(raw);
+}
+function streetNumberKey(s){
+ const raw=typeof s==='string'?s:String(s?.address||'');
+ const n=norm(raw);
+ // Mantém rua/logradouro + número da casa e ignora bairro/cidade/CEP.
+ const m=n.match(/^(.*?)(?:,|\s|-)\s*(\d+[a-z]?)(?:\b|$)/i);
+ return cleanKey(m?`${m[1]} ${m[2]}`:n);
+}
+function correctionFor(s){
+ const cs=window.coordCorrections||{};
+ const keys=[addressKey(s),streetNumberKey(s)];
+ for(const k of keys){const c=cs[k];if(c&&validCoord(c.lat,c.lng))return {lat:Number(c.lat),lng:Number(c.lng)};}
+ return null;
+}
+function applyCorrection(s){
+ const c=correctionFor(s);if(c){s.lat=c.lat;s.lng=c.lng;s.manual=true;}
+ return s;
+}
+function load(){try{
+ let raw=localStorage.getItem(STORE);
+ if(!raw){for(const key of STORE_LEGACY){raw=localStorage.getItem(key);if(raw)break;}}
+ const x=JSON.parse(raw||'null');
+ window.coordCorrections=x?.coordCorrections||{};
+ if(x?.stops?.length){
+   stops=x.stops;
+   map3D=!!x.map3D; autoHeading=!!x.autoHeading;
+   lotModeActive=!!x.lotModeActive; lotModeLo=x.lotModeLo==='extras'?'extras':(Number.isFinite(Number(x.lotModeLo))?Number(x.lotModeLo):null);
+   manualTargetId=x.manualTargetId||null;
+   selected=stops.find(s=>s.id===x.selectedId)||firstPending();
+   startTime=Number.isFinite(Number(x.startTime))?Number(x.startTime):0;
+   timerElapsed=Number.isFinite(Number(x.timerElapsed))&&Number(x.timerElapsed)>=0?Number(x.timerElapsed):0;
+   timerRunning=!!x.timerRunning; nav=x.nav||'here'; gpsWanted=!!x.gpsWanted; fullscreenWanted=!!x.fullscreenWanted;
+   window.savedMapView=x.mapView||null; window.savedUiState=x.uiState||null;
+   stops.forEach(s=>{applyCorrection(s);s.packages?.forEach(p=>applyCorrection(p));});
+   save();
+   return true;
+ }
+ if(x){
+   startTime=Number.isFinite(Number(x.startTime))?Number(x.startTime):0;
+   timerElapsed=Number.isFinite(Number(x.timerElapsed))&&Number(x.timerElapsed)>=0?Number(x.timerElapsed):0;
+   timerRunning=!!x.timerRunning;nav=x.nav||'here';gpsWanted=!!x.gpsWanted;fullscreenWanted=!!x.fullscreenWanted;
+   window.savedMapView=x.mapView||null;window.savedUiState=x.uiState||null;
+   map3D=!!x.map3D;autoHeading=!!x.autoHeading;
+ }
+ }catch(e){window.coordCorrections=window.coordCorrections||{}}
+ return false;
+}
+function makeId(){return 's'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+const BUSINESS_PATTERNS=[/\bltda\b/,/\bme\b/,/\beireli\b/,/\bs\/?a\b/,/\bcnpj\b/,/\bcomerci[oa]\b/,/\bloja\b/,/\bmercado\b/,/\bmercearia\b/,/\bfarmacia\b/,/\bdrogaria\b/,/\bpapelaria\b/,/\bpadaria\b/,/\brestaurante\b/,/\blanchonete\b/,/\bempresa\b/,/\bindustria\b/,/\bescritorio\b/,/\bclinica\b/,/\bacademia\b/,/\bsalao\b/,/\boficina\b/,/\bauto\s?pecas\b/,/\bshopping\b/,/\bgaleria\b/,/\bconjunto\s?\d/,/\bconj\.?\s?\d/,/\bsala\s?\d/,/\bfabrica\b/,/\bdeposito\b/,/\batacad(ao|ista)\b/,/\bsupermercado\b/,/\bhotel\b/,/\bpousada\b/,/\bbanco\b/,/\bagencia\b/,/\bposto\b/,/\bconsultorio\b/,/\bhospital\b/,/\bimobiliaria\b/];
+function looksLikeBusiness(text){const t=norm(text||'');return t?BUSINESS_PATTERNS.some(p=>p.test(t)):false;}
+function parseRows(rows){
+ const mapStops=new Map(), extras=[];
+ for(let i=0;i<rows.length;i++){
+  const r=rows[i];
+  const stop=String(col(r,['Stop','Parada','Stop Number'])??'').trim();
+  const seq=String(col(r,['Sequence','Sequencia','Sequência','Seq'])??'').trim();
+  const code=String(col(r,['SPX TN','Codigo','Código','Code','Pedido'])||col(r,['AT ID'])||'').trim();
+  const address=String(col(r,['Destination Address','Endereço','Endereco','Rua','Logradouro','Street'])||'').trim();
+  const bairro=String(col(r,['Bairro','District'])||'').trim(), city=String(col(r,['City','Cidade','Municipio','Município'])||'').trim(), zip=String(col(r,['Zipcode/Postal code','CEP','Zip'])||'').trim();
+  const recipient=String(col(r,['Nome','Recipient','Destinatario','Destinatário','Customer','Cliente'])||'').trim();
+  const complement=String(col(r,['Complemento','Complement','Observações','Observacoes','Notes','Obs'])||'').trim();
+  const autoBusiness=looksLikeBusiness([address,recipient,complement].join(' '));
+  let lat=num(col(r,['Latitude','Lat'])),lng=num(col(r,['Longitude','Long','Lng']));
+  const isExtra=!stop&&!seq;
+  const correction=correctionFor({address,bairro,city,zip}); if(correction){lat=correction.lat;lng=correction.lng;} const pkg={seq,stop,code,address,bairro,city,zip,lat,lng,extra:isExtra,business:autoBusiness};
+  if(isExtra){
+   extras.push({id:makeId(),stop:'',seq:'',address,bairro,city,zip,lat,lng,status:'pendente',packages:[pkg],manual:false,extra:true,firstIndex:i,business:autoBusiness});
+   continue;
+  }
+  // Pontos normais são agrupados pelo endereço físico. Assim, vários pacotes
+  // no mesmo endereço ficam em uma única parada, mesmo que o Stop/Sequence
+  // informado na planilha seja diferente. Cada pacote mantém seu próprio Stop.
+  const localKey=addressKey(address)||addressKey([bairro,city,zip].filter(Boolean).join(' '))||(lat!==null&&lng!==null?`${lat.toFixed(6)},${lng.toFixed(6)}`:`linha:${i}`);
+  const key='normal|'+localKey;
+  if(!mapStops.has(key))mapStops.set(key,{id:makeId(),stop:stop||'',seq:seq||'',address,bairro,city,zip,lat,lng,status:'pendente',packages:[],manual:false,extra:false,firstIndex:i,business:false});
+  const s=mapStops.get(key);
+  if((s.lat===null||s.lng===null)&&(lat!==null&&lng!==null)){s.lat=lat;s.lng=lng}
+  if(!s.address&&address)s.address=address;if(!s.bairro&&bairro)s.bairro=bairro;if(!s.city&&city)s.city=city;if(!s.zip&&zip)s.zip=zip;
+  if(autoBusiness)s.business=true;
+  s.packages.push(pkg);
+  const seqNums=s.packages.map(p=>parseFloat(p.seq)).filter(Number.isFinite);
+  if(seqNums.length){const minSeq=Math.min(...seqNums);const minPkg=s.packages.find(p=>parseFloat(p.seq)===minSeq);s.seq=minPkg?.seq||s.seq}
+  const stopNums=s.packages.map(p=>parseFloat(p.stop)).filter(Number.isFinite);
+  if(stopNums.length){const minStop=Math.min(...stopNums);const minPkg=s.packages.find(p=>parseFloat(p.stop)===minStop);s.stop=minPkg?.stop||s.stop}
+ }
+ const normal=[...mapStops.values()];
+ // Extras no mesmo endereço de uma parada normal acompanham esse agrupamento.
+ const isolatedExtras=[];
+ for(const ex of extras){
+   const k=addressKey(ex);
+   const target=normal.find(n=>k && addressKey(n)===k);
+   if(target) target.packages.push(...ex.packages);
+   else isolatedExtras.push(ex);
+ }
+ normal.sort((a,b)=>{
+   const qa=parseFloat(a.seq),qb=parseFloat(b.seq);
+   if(Number.isFinite(qa)&&Number.isFinite(qb)&&qa!==qb)return qa-qb;
+   const sa=parseFloat(a.stop),sb=parseFloat(b.stop);
+   if(Number.isFinite(sa)&&Number.isFinite(sb)&&sa!==sb)return sa-sb;
+   return a.firstIndex-b.firstIndex;
+ });
+ isolatedExtras.sort((a,b)=>a.firstIndex-b.firstIndex);
+ return [...normal,...isolatedExtras];
+}
+function pendingPool(){
+ // Prioridade manual: tocar em "IR AGORA" numa parada específica faz ela
+ // vir na frente de tudo (lote, filtro de empresa, sequência normal) até
+ // ser resolvida — depois disso volta sozinho pro fluxo anterior.
+ if(manualTargetId){
+   const mt=stops.find(s=>s.id===manualTargetId);
+   if(mt&&mt.status==='pendente')return [mt];
+   manualTargetId=null; // já foi resolvida (ou sumiu): libera o retorno automático
+ }
+ // Enquanto um lote está ativo, o "próximo" só pode vir de dentro dele —
+ // essa era a peça que faltava: antes, o lote só reorganizava a ordem
+ // interna das posições, mas firstPending() continuava vasculhando o
+ // array inteiro, ignorando o filtro e voltando pra Parada 1.
+ if(lotModeActive&&lotModeLo==='extras'){
+   const pool=stops.filter(s=>s.extra&&s.status==='pendente');
+   if(pool.length)return pool;
+   lotModeActive=false;lotModeLo=null;
+   const panel=$('lotPanel');if(panel)panel.style.display='none';
+   if(lotPreviewLayer){lotPreviewLayer.remove();lotPreviewLayer=null;}
+   toast('Todos os pacotes extras foram resolvidos! Voltando ao modo normal de rota.',2600);
+ }else if(lotModeActive&&Number.isFinite(lotModeLo)){
+   const hi=lotModeLo+9;
+   const pool=stops.filter(s=>{
+     if(s.extra||s.status!=='pendente')return false;
+     const n=parseInt(s.stop,10);
+     return Number.isFinite(n)&&n>=lotModeLo&&n<=hi;
+   });
+   if(pool.length)return pool;
+   // Lote esgotado (todas as paradas dele já foram resolvidas): desativa
+   // sozinho e cai pro modo normal. Só mexe no estado/painel aqui — quem
+   // chamou esta função já vai salvar e redesenhar o mapa em seguida.
+   lotModeActive=false;lotModeLo=null;
+   const panel=$('lotPanel');if(panel)panel.style.display='none';
+   if(lotPreviewLayer){lotPreviewLayer.remove();lotPreviewLayer=null;}
+   toast('Lote concluído! Voltando ao modo normal de rota.',2600);
+ }
+ let pool=stops.filter(s=>!s.extra&&s.status==='pendente');
+ if(businessFilterActive){
+   const onlyBiz=pool.filter(s=>s.business);
+   if(onlyBiz.length)return onlyBiz;
+   // Nenhuma empresa pendente no momento: não trava o motorista sem
+   // paradas — volta a considerar todas silenciosamente (o aviso já foi
+   // dado no botão que ligou o filtro, se for o caso).
+ }
+ return pool;
+}
+function firstPending(){return pendingPool()[0]||stops.find(s=>!s.extra&&s.status!=='entregue'&&s.status!=='pulada')||null}
+// ===== Desempenho e Economia: registro diário (persistido) =====
+let dailyLog={},fuelKmL=null,fuelPrice=null,lastKmPoint=null,routeKm=0;
+function todayKey(d){d=d||new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function loadDailyLog(){try{dailyLog=JSON.parse(localStorage.getItem('roterisadorGPS_dailyLog')||'{}');}catch(e){dailyLog={}}
+ try{const f=JSON.parse(localStorage.getItem('roterisadorGPS_fuel')||'null');if(f){fuelKmL=f.kmL;fuelPrice=f.price;}}catch(e){}}
+function saveDailyLog(){try{localStorage.setItem('roterisadorGPS_dailyLog',JSON.stringify(dailyLog));}catch(e){/* armazenamento cheio: ignora, não é crítico */}}
+function logToday(patch){
+ const k=todayKey();
+ if(!dailyLog[k])dailyLog[k]={delivered:0,skipped:0,km:0};
+ Object.keys(patch).forEach(f=>dailyLog[k][f]=(dailyLog[k][f]||0)+patch[f]);
+ saveDailyLog();
+}
+function logStatusChange(prevStatus,newStatus){
+ const delta={};
+ if(prevStatus==='entregue')delta.delivered=(delta.delivered||0)-1;
+ if(prevStatus==='pulada')delta.skipped=(delta.skipped||0)-1;
+ if(newStatus==='entregue')delta.delivered=(delta.delivered||0)+1;
+ if(newStatus==='pulada')delta.skipped=(delta.skipped||0)+1;
+ if(Object.keys(delta).length)logToday(delta);
+}
+function periodRange(period){
+ const now=new Date();
+ if(period==='7d'){const arr=[];for(let i=0;i<7;i++){const d=new Date(now);d.setDate(d.getDate()-i);arr.push(todayKey(d));}return arr;}
+ if(period==='mes'){const arr=[];const y=now.getFullYear(),m=now.getMonth(),days=new Date(y,m+1,0).getDate();for(let i=1;i<=days;i++)arr.push(todayKey(new Date(y,m,i)));return arr;}
+ return [todayKey(now)];
+}
+function renderReports(period){
+ period=period||'hoje';
+ document.querySelectorAll('.periodTab').forEach(t=>t.classList.toggle('active',t.dataset.period===period));
+ const keys=periodRange(period);
+ let km=0,delivered=0,skipped=0;
+ keys.forEach(k=>{const d=dailyLog[k];if(d){km+=d.km||0;delivered+=d.delivered||0;skipped+=d.skipped||0;}});
+ let pending=null,successRate=0;
+ if(period==='hoje'){
+   // "Hoje" usa os números AO VIVO da rota atual — sempre exatos, não
+   // depende só do log incremental (que é a única fonte pra 7 dias/mês).
+   delivered=donePackages();
+   skipped=stops.filter(s=>s.status==='pulada').reduce((a,s)=>a+s.packages.length,0);
+   pending=leftPackages();
+   const totalNow=delivered+skipped+pending;
+   successRate=totalNow>0?(delivered/totalNow*100):0;
+   $('repTime').textContent=formatTimer(timerElapsed+(timerRunning&&startTime?(Date.now()-startTime)/1000:0));
+ }else{
+   const totalResolved=delivered+skipped;
+   successRate=totalResolved>0?(delivered/totalResolved*100):0;
+   $('repTime').textContent='—';
+ }
+ $('repKm').textContent=km.toFixed(1).replace('.',',');
+ $('repSuccess').textContent=successRate.toFixed(1).replace('.',',')+'%';
+ $('repDone').textContent=delivered;
+ $('repPending').textContent=pending===null?'—':pending;
+ $('repSkipped').textContent=skipped;
+ const cost=(fuelKmL&&fuelPrice&&fuelKmL>0)?(km/fuelKmL*fuelPrice):null;
+ $('repFuelCost').textContent=cost!==null?('R$ '+cost.toFixed(2).replace('.',',')):'— (informe o consumo)';
+}
+function renderHistory(){
+ const hist=loadHistory();
+ const el=$('historyList');
+ if(!hist.length){el.innerHTML='<div class="historyEmpty">Nenhuma rota concluída ainda.<br>Elas aparecem aqui assim que você terminar uma entrega.</div>';return;}
+ el.innerHTML=hist.map(h=>{
+   const d=new Date(h.date);
+   const dataStr=d.toLocaleDateString('pt-BR')+' às '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+   return `<div class="historyCard"><div class="hDate">${dataStr}</div><div class="hStats"><span>📦 <b>${h.packages}</b> pacotes</span><span>📍 <b>${h.stops}</b> paradas</span><span>⏱ <b>${formatTimer(h.timeSec)}</b></span><span>🛣 <b>${Number(h.km||0).toFixed(1).replace('.',',')} km</b></span></div></div>`;
+ }).join('');
+}
+function donePackages(){return stops.filter(s=>s.status==='entregue').reduce((a,s)=>a+s.packages.length,0)}
+function leftPackages(){return stops.filter(s=>s.status==='pendente').reduce((a,s)=>a+s.packages.length,0)}
+function totalPackages(){return stops.reduce((a,s)=>a+s.packages.length,0)}
+function address(s){return [s.address,s.bairro,s.city,s.zip].filter(Boolean).join(', ').replace(', '+s.zip,' - '+s.zip)}
+function houseNumber(s){
+ const raw=String(s?.address||'').trim();
+ if(!raw)return '—';
+ // Prioridade 1: endereços normalmente vêm como "Rua X, 123, Bairro...".
+ // O número logo depois da PRIMEIRA vírgula é o número do imóvel, mesmo que
+ // o nome da rua (antes da vírgula) contenha números de data, tipo "5 de Abril".
+ const comma=raw.indexOf(',');
+ if(comma>=0){
+   const afterComma=raw.slice(comma+1);
+   const m1=afterComma.match(/\s*#?\s*([0-9]+[A-Za-z]?(?:[-/][0-9]+)?)\b/);
+   if(m1)return m1[1];
+ }
+ // Prioridade 2 (sem vírgula no endereço): procura um número no texto todo,
+ // mas primeiro apaga padrões de data por extenso no nome da rua
+ // (ex.: "5 de Abril", "15 de Novembro", "7 de Setembro"), para não
+ // confundi-los com o número da casa.
+ const cleaned=raw.replace(/\b[0-9]+\s+de\s+[A-Za-zÀ-ÿ]+/gi,'');
+ const m2=cleaned.match(/(?:^|[,\s])([0-9]+[A-Za-z]?(?:[-/][0-9]+)?)\b/);
+ return m2?m2[1]:'—';
+}
+function streetAndNumber(s){
+ const raw=String(s?.address||'').trim().replace(/\s+/g,' ').replace(/,{2,}/g,',').replace(/\s*,\s*,/g,',');
+ if(!raw)return 'Endereço sem descrição';
+ const n=houseNumber(s);
+ if(n==='—')return raw;
+ // Pega a ÚLTIMA ocorrência exata desse número no texto (o número da casa
+ // normalmente vem depois de qualquer data por extenso no nome da rua).
+ const re=new RegExp('(?:^|[,\\s])'+n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\b','gi');
+ let idx=-1,mm;
+ while((mm=re.exec(raw))){idx=mm.index+mm[0].length-n.length;}
+ if(idx>=0)return raw.slice(0,idx).replace(/[ ,]+$/,'')+', nº '+n;
+ return raw;
+}
+function packageStopSummary(s){
+ const labels=(s?.packages||[]).map(p=>p.extra?'(-)':(String(p.stop||'').trim()||'—'));
+ if(!labels.length)return '—';
+ // Prefixo "P" só no primeiro número da lista (ex.: "P10 / 11 / (-)").
+ const prefixed=labels.map((l,i)=>i===0&&l!=='(-)'&&l!=='—'?'P'+l:l);
+ const shown=prefixed.slice(0,5);
+ return prefixed.length>5 ? shown.join(' / ')+`... (+${prefixed.length-5})` : shown.join(' / ');
+}
+function firstStopLabel(s){
+ if(!s)return '—';
+ if(s.extra)return '−';
+ const first=String(s.packages?.[0]?.stop||s.stop||'').trim();
+ return first||'—';
+}
+function title(s){return s.extra?'PACOTE EXTRA':`Parada ${s.stop||'—'}${s.seq?` • Ordem ${s.seq}`:''}`}
+function packageLabels(s){
+ const labels=(s?.packages||[]).map(p=>p.extra?'(-)':(String(p.stop||'').trim()||'—'));
+ return labels.length?labels.join(' / '):'—';
+}
+function updateUI(){
+ $('statPackages').textContent=totalPackages();$('statStops').textContent=stops.length;$('statDone').textContent=donePackages();$('statLeft').textContent=leftPackages();
+ const p=selected||firstPending();
+ if(p){
+   const casa=houseNumber(p);
+   const resumo=packageStopSummary(p);
+   $('routeState').textContent=`N°: ${casa} • P.E: ${resumo}`;
+   $('nextNum').textContent=firstStopLabel(p);
+   $('nextTitle').textContent=title(p);
+   $('nextAddr').textContent=streetAndNumber(p);
+   $('nextPk').textContent=`${p.packages.length} pacote${p.packages.length!==1?'s':''}`;
+ }else{
+   $('routeState').textContent='N°: — • P.E: —';
+   $('nextNum').textContent='—';$('nextTitle').textContent='Nenhuma entrega';$('nextAddr').textContent='Carregue a lista para começar';$('nextPk').textContent='0 pacotes';
+ }
+ $('gpsBtn').classList.toggle('active',gpsOn);
+}
+function markerIcon(s){
+ const label=s?.extra?'−':firstStopLabel(s);
+ const cls='marker'+(s?.extra?' extra ':' ')+(s?.status==='entregue'?' done':s?.status==='pulada'?' skip':s?.id===selected?.id?' next':'')+(s?.business?' isBusiness':'');
+ // Área de toque maior que o círculo visível (mínimo recomendado ~44px),
+ // pra não precisar acertar o centro exato do número pra abrir a parada.
+ const hit=s?.id===selected?.id?52:46;
+ return L.divIcon({className:'',html:`<div class="markerHit"><div class="${cls.trim()}"><div class="markerBillboard">${esc(label)}</div></div></div>`,iconSize:[hit,hit],iconAnchor:[hit/2,hit/2]});
+}
+function formatTimer(total){
+ const safe=Math.max(0,Math.floor(Number(total)||0));
+ const h=String(Math.floor(safe/3600)).padStart(2,'0');
+ const m=String(Math.floor((safe%3600)/60)).padStart(2,'0');
+ const sec=String(safe%60).padStart(2,'0');
+ return `${h}:${m}:${sec}`;
+}
+function updateTimerUI(){
+ const t=$('time'),b=$('timerBtn');
+ if(t)t.textContent=formatTimer(timerElapsed);
+ if(b){
+   if(timerRunning){b.textContent='✓';b.title='Rota em andamento (cronômetro contínuo)';b.setAttribute('aria-label','Rota em andamento');}
+   else{b.textContent='▶';b.title='Iniciar cronômetro';b.setAttribute('aria-label','Iniciar cronômetro');}
+   b.classList.toggle('timer-active',timerRunning);
+ }
+}
+function finishTimer(){
+ // Só congela quando a rota termina de verdade (última entrega concluída).
+ if(!timerRunning)return;
+ if(timer){clearInterval(timer);timer=null;}
+ if(startTime)timerElapsed=Math.max(0,Math.floor((Date.now()-startTime)/1000));
+ timerRunning=false;startTime=0;updateTimerUI();save();
+}
+function toggleTimer(){
+ // Sem pausa: uma vez iniciado, só para sozinho quando a rota termina (ou
+ // ao importar uma lista nova). Clicar de novo enquanto roda não faz nada.
+ if(timerRunning)return;
+ timerElapsed=0;startTime=Date.now();timerRunning=true;routeKm=0;updateTimerUI();
+ if(timer)clearInterval(timer);
+ timer=setInterval(()=>{if(!timerRunning)return;timerElapsed=Math.max(0,Math.floor((Date.now()-startTime)/1000));updateTimerUI();},250);
+ save();toast('Cronômetro iniciado — roda sem parar até a última entrega.',1800);
+}
+function renderMap(){
+ if(!map)return;
+ markers.forEach(m=>m.remove());markers=[];
+ stops.forEach(s=>{applyCorrection(s);s.packages?.forEach(p=>applyCorrection(p));});
+ const valid=stops.filter(s=>s.lat!==null&&s.lng!==null);
+ valid.forEach(s=>{
+   // O marcador usa EXATAMENTE a coordenada armazenada da parada.
+   // Não existe deslocamento visual que possa criar divergência com o HERE WeGo.
+   const ll=[Number(s.lat),Number(s.lng)];
+   const m=L.marker(ll,{icon:markerIcon(s),zIndexOffset:selected?.id===s.id?1000:0}).addTo(map);
+   m.on('click',()=>openDetail(s));markers.push(m);
+ });
+ renderCar();drawRoute();
+}
+function renderCar(){
+ if(!map)return;
+ if(carMarker){carMarker.remove();carMarker=null}
+ if(gps.lat===null||gps.lng===null)return;
+ const heading=Number.isFinite(gps.heading)?gps.heading:0;
+ // A seta é desenhada apontando para "cima" (Norte) por padrão e gira aqui
+ // pelo rumo (heading) do GPS. Como ela fica dentro do próprio mapa, que já
+ // gira sozinho no modo 3D (mapAngle=-heading), as duas rotações se somam:
+ // no modo 3D o resultado dá sempre 0° (seta fixa apontando pra frente/cima,
+ // como um GPS de verdade); no modo normal ela mostra o rumo real na bússola.
+ const html=`<div style="width:34px;height:34px;transform:rotate(${heading}deg);transform-origin:50% 50%">
+   <svg viewBox="0 0 24 24" width="34" height="34" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))">
+     <path d="M12 1.5 L20 21 L12 16.5 L4 21 Z" fill="#1976e8" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/>
+   </svg>
+ </div>`;
+ carMarker=L.marker([gps.lat,gps.lng],{icon:L.divIcon({className:'',html,iconSize:[34,34],iconAnchor:[17,17]}),zIndexOffset:5000,interactive:false}).addTo(map);
+}
+function bboxAroundCenter(center,radiusMeters){
+ // Usamos um raio fixo em torno do centro (em vez de map.getBounds()) porque,
+ // quando o mapa está girado, o contêiner do Leaflet fica artificialmente
+ // maior por trás das câmeras (para não cortar os cantos), e getBounds()
+ // devolveria uma área bem maior que a tela — gerando consultas pesadas
+ // demais ao OpenStreetMap que podiam falhar (ou "não fazer nada") em silêncio.
+ const dLat=radiusMeters/111320;
+ const dLng=radiusMeters/(111320*Math.cos(center.lat*Math.PI/180));
+ return `${center.lat-dLat},${center.lng-dLng},${center.lat+dLat},${center.lng+dLng}`;
+}
+function toggleOneway(){
+ onewayOn=!onewayOn;
+ $('onewayBtn').classList.toggle('active',onewayOn);
+ if(onewayOn){toast('Setas de sentido ativadas. Aproxime o mapa para ver melhor.',2200);loadOneway();}
+ else if(onewayLayer){onewayLayer.clearLayers();}
+ save();
+}
+function scheduleOneway(){
+ if(!onewayOn)return;
+ clearTimeout(onewayDebounce);
+ onewayDebounce=setTimeout(loadOneway,700);
+}
+function onewayCacheKey(lat,lng){
+ // Agrupa em células de ~1,1km (2 casas decimais) pra reaproveitar o cache
+ // ao andar perto, sem precisar buscar de novo a cada pequeno movimento.
+ return 'onewayCache:'+lat.toFixed(2)+','+lng.toFixed(2);
+}
+function readOnewayCache(key){
+ try{
+   const raw=localStorage.getItem(key);
+   if(!raw)return null;
+   const parsed=JSON.parse(raw);
+   if(!parsed||!Array.isArray(parsed.elements))return null;
+   return parsed;
+ }catch(e){return null;}
+}
+function writeOnewayCache(key,elements){
+ try{localStorage.setItem(key,JSON.stringify({elements,ts:Date.now()}));}catch(e){/* localStorage cheio: ignora, não é crítico */}
+}
+async function loadOneway(){
+ if(!map||!onewayOn)return;
+ if(map.getZoom()<16){if(onewayLayer)onewayLayer.clearLayers();toast('Aproxime mais o mapa para ver as setas de sentido.',1800);return;}
+ const center=map.getCenter();
+ const key=onewayCacheKey(center.lat,center.lng);
+ const cached=readOnewayCache(key);
+ const cacheAgeMs=cached?Date.now()-cached.ts:Infinity;
+ const ONE_DAY=24*60*60*1000;
+ if(cached){
+   // Mostra o que já está salvo na hora (funciona até sem internet), e só
+   // busca de novo em segundo plano se o cache estiver com mais de 1 dia —
+   // sentido de rua muda raramente, não precisa reconsultar toda hora.
+   renderOneway(cached.elements);
+   if(cacheAgeMs<ONE_DAY)return;
+ }
+ const bbox=bboxAroundCenter(center,650);
+ const query=`[out:json][timeout:20];way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|service)$"](${bbox});out geom;`;
+ const myReq=++onewayRequest;
+ try{
+   const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(query)});
+   if(!res.ok)throw new Error('overpass');
+   const data=await res.json();
+   if(myReq!==onewayRequest||!onewayOn)return; // resposta antiga/descartada
+   const elements=data.elements||[];
+   renderOneway(elements);
+   writeOnewayCache(key,elements);
+ }catch(e){
+   // Falha silenciosa: sem internet ou servidor do OSM ocupado. Se já havia
+   // um cache (mesmo antigo), ele continua na tela — o mapa não trava nem
+   // aparece nenhum aviso incomodando o motorista durante a entrega.
+ }
+}
+function renderOneway(elements){
+ if(!map)return;
+ if(!onewayLayer)onewayLayer=L.layerGroup().addTo(map);
+ onewayLayer.clearLayers();
+ // Só desenhamos seta para ruas de MÃO ÚNICA confirmadas (oneway=yes/-1).
+ // Mão dupla é o padrão/esperado pra maioria das ruas e não precisa de
+ // símbolo nenhum — isso elimina de vez o símbolo de "par de triângulos"
+ // que estava gerando confusão, e deixa a tela bem menos poluída (só
+ // aparece ícone onde realmente importa: a restrição de sentido).
+ // Rotação nativa do SVG (atributo transform dentro do próprio <svg>).
+ // 0° de rotação = Norte (ponta pra cima), igual à seta do carro.
+ const mkIcon=(bearing)=>{
+   const svg=`<svg width="15" height="15" viewBox="0 0 16 16"><g transform="rotate(${bearing} 8 8)"><path d="M8 1.5 L12.2 13 L8 10.3 L3.8 13 Z" fill="#2b2b2b" stroke="#fff" stroke-width="1"/></g></svg>`;
+   return L.divIcon({className:'',html:svg,iconSize:[15,15],iconAnchor:[7.5,7.5]});
+ };
+ elements.forEach(way=>{
+   const geom=way.geometry;if(!geom||geom.length<2)return;
+   const tags=way.tags||{};
+   const reversed=tags.oneway==='-1';
+   const oneway=reversed||tags.oneway==='yes'||tags.oneway==='1'||tags.oneway==='true';
+   if(!oneway)return; // mão dupla: não desenha nada
+   let pts=geom.map(p=>[p.lat,p.lon]);
+   if(reversed)pts=pts.reverse();
+   // Discretas e espaçadas (a cada ~120m), pra não poluir a tela.
+   const stepMeters=120;
+   let acc=stepMeters*0.5; // primeira seta já pertinho do início da via
+   for(let i=1;i<pts.length;i++){
+     const a=pts[i-1],b=pts[i];
+     acc+=distanceMeters(a[0],a[1],b[0],b[1]);
+     if(acc<stepMeters)continue;
+     acc=0;
+     const bearing=bearingBetween({lat:a[0],lng:a[1]},{lat:b[0],lng:b[1]});
+     const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2];
+     const icon=mkIcon(bearing);
+     onewayLayer.addLayer(L.marker(mid,{icon,interactive:false,zIndexOffset:400}));
+   }
+ });
+}
+async function drawRoute(){
+ if(!map)return;
+ if(routeLayer){routeLayer.remove();routeLayer=null}
+ routeGeom=null;
+ arrowMarkers.forEach(a=>a.remove());arrowMarkers=[];
+ const target=pendingPool().find(s=>s.lat!==null&&s.lng!==null);
+ if(!target||gps.lat===null||gps.lng===null)return;
+ const id=++routeRequest;
+ try{
+   const r=await fetch(OSRM+`${gps.lng},${gps.lat};${target.lng},${target.lat}?overview=full&geometries=geojson&steps=true`);
+   const d=await r.json();
+   if(id!==routeRequest||!d.routes?.[0])return;
+   const geom=d.routes[0].geometry.coordinates.map(p=>[p[1],p[0]]);
+   routeGeom=geom;
+   const casing=L.polyline(geom,{color:'#ffffff',weight:10,opacity:.88,lineJoin:'round',lineCap:'round'});
+   const main=L.polyline(geom,{color:'#1976e8',weight:6,opacity:.98,lineJoin:'round',lineCap:'round'});
+   routeLayer=L.layerGroup([casing,main]).addTo(map);
+   // A linha da rota fica limpa e contínua, sem setas por cima — o sentido
+   // de circulação já é mostrado pelas setas sutis pretas das vias (botão
+   // ↔), que agora cobrem o mapa inteiro, não só a rota calculada.
+ }catch(e){
+   // Sem rota viária confirmada, não desenhamos uma linha reta que poderia levar o motorista para fora da rua.
+ }
+}
+function distanceMeters(a,b,c,d){const R=6371000,p=Math.PI/180,da=(c-a)*p,db=(d-b)*p,x=Math.sin(da/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(db/2)**2;return 2*R*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))}
+// ===== NOVO em V18 — módulo separado, não mexe na lógica de setas/rota =====
+// "Priorizar lote atual": dentro da dezena de paradas em que o entregador
+// está trabalhando agora (ex.: paradas 60 a 69), reorganiza só a ORDEM entre
+// as pendentes desse lote por proximidade geográfica ao carro, pra evitar
+// passar na frente de uma parada do mesmo lote sem entregar e ter que voltar.
+function currentLotRange(){
+ const p=firstPending();
+ if(!p||p.extra)return null;
+ const n=parseInt(p.stop,10);
+ if(!Number.isFinite(n))return null;
+ const lo=Math.floor(n/10)*10;
+ return {lo,hi:lo+9};
+}
+// Reorganiza (nearest-neighbor a partir do carro) as paradas pendentes do
+// lote [lo,lo+9]. Não usa prompt() nenhum — é chamada pelos botões do
+// painel flutuante (◀ / ▶ / abrir).
+async function applyLotPriority(lo){
+ const isExtras=lo==='extras';
+ const hi=isExtras?null:lo+9;
+ if(gps.lat===null||gps.lng===null){toast('Ative o GPS para reorganizar o lote por proximidade.');return;}
+ // Ativa o FILTRO do lote — essa é a parte que faltava antes: sem isso,
+ // firstPending()/drawRoute() continuavam vasculhando o array inteiro e
+ // voltavam pra primeira parada pendente de qualquer lugar (ex.: Parada 1),
+ // ignorando completamente o lote escolhido.
+ lotModeActive=true;
+ lotModeLo=lo;
+ const idxs=[];
+ stops.forEach((s,i)=>{
+   if(s.status!=='pendente'||s.lat===null||s.lng===null)return;
+   if(isExtras){if(s.extra)idxs.push(i);return;}
+   if(s.extra)return;
+   const n=parseInt(s.stop,10);
+   if(Number.isFinite(n)&&n>=lo&&n<=hi)idxs.push(i);
+ });
+ if(lotPreviewLayer){lotPreviewLayer.remove();lotPreviewLayer=null;}
+ if(!idxs.length){
+   save();updateUI();renderMap();drawRoute();
+   return toast(isExtras?'Nenhum pacote extra pendente no momento.':`Nenhuma parada pendente no lote ${lo}–${hi}.`,2200);
+ }
+ if(idxs.length>=2){
+   // Nearest-neighbor simples a partir da posição atual do carro: rápido e
+   // resolve bem o problema de "ziguezague" dentro de um lote pequeno.
+   const remaining=idxs.map(i=>stops[i]);
+   const ordered=[];
+   let cur={lat:gps.lat,lng:gps.lng};
+   while(remaining.length){
+     let bestI=0,bestD=Infinity;
+     remaining.forEach((s,i)=>{const d=distanceMeters(cur.lat,cur.lng,s.lat,s.lng);if(d<bestD){bestD=d;bestI=i;}});
+     const next=remaining.splice(bestI,1)[0];
+     ordered.push(next);
+     cur={lat:next.lat,lng:next.lng};
+   }
+   // Recoloca essas paradas nos MESMOS índices que já ocupavam no array (só
+   // muda a ordem ENTRE elas) — preserva a posição de tudo que está fora do
+   // lote e de tudo que já foi entregue/anulado.
+   idxs.forEach((slot,k)=>{stops[slot]=ordered[k]});
+   drawLotPreview(ordered);
+ }
+ selected=firstPending();
+ save();updateUI();renderMap();drawRoute();
+}
+let lotPanelLo=0;
+function updateLotPanelLabel(){$('lotRangeLabel').textContent=lotPanelLo==='extras'?'Extras (sem número)':`${lotPanelLo}–${lotPanelLo+9}`}
+function openLotPanel(){
+ const auto=currentLotRange();
+ lotPanelLo=lotModeActive&&(Number.isFinite(lotModeLo)||lotModeLo==='extras')?lotModeLo:(auto?auto.lo:0);
+ updateLotPanelLabel();
+ $('lotPanel').style.display='flex';
+ applyLotPriority(lotPanelLo);
+}
+function closeLotPanel(){
+ // Alternador de verdade: fechar desativa o filtro do lote e volta pro
+ // modo normal de rota (não só esconde o painel visualmente).
+ $('lotPanel').style.display='none';
+ if(lotModeActive){
+   lotModeActive=false;lotModeLo=null;
+   if(lotPreviewLayer){lotPreviewLayer.remove();lotPreviewLayer=null;}
+   selected=firstPending();
+   save();updateUI();renderMap();drawRoute();
+ }
+}
+function toggleLotPanel(){
+ if(lotModeActive)closeLotPanel();else openLotPanel();
+}
+function shiftLotPanel(dir){
+ // Do lote 0–9 pra trás vai pro modo Extras; de Extras pra frente volta ao 0–9.
+ if(lotPanelLo==='extras')lotPanelLo=dir>0?0:0;
+ else lotPanelLo=(lotPanelLo===0&&dir<0)?'extras':Math.max(0,lotPanelLo+dir*10);
+ updateLotPanelLabel();
+ applyLotPriority(lotPanelLo);
+}
+function toggleExtrasLot(){
+ lotPanelLo=lotPanelLo==='extras'?0:'extras';
+ updateLotPanelLabel();
+ applyLotPriority(lotPanelLo);
+}
+async function drawLotPreview(orderedStops){
+ // Desenha, por cima do mapa, o caminho completo cobrindo TODAS as paradas
+ // do lote na nova ordem — uma pré-visualização, separada da navegação
+ // turno-a-turno normal (que continua guiando só até a próxima parada).
+ if(lotPreviewLayer){lotPreviewLayer.remove();lotPreviewLayer=null;}
+ if(!map||gps.lat===null||gps.lng===null||orderedStops.length<2)return;
+ const waypoints=[`${gps.lng},${gps.lat}`,...orderedStops.map(s=>`${s.lng},${s.lat}`)].join(';');
+ try{
+   const r=await fetch(OSRM+`${waypoints}?overview=full&geometries=geojson`);
+   const d=await r.json();
+   if(!d.routes?.[0])return;
+   const geom=d.routes[0].geometry.coordinates.map(p=>[p[1],p[0]]);
+   lotPreviewLayer=L.polyline(geom,{color:'#a24fd6',weight:5,opacity:.85,dashArray:'2,10',lineCap:'round'}).addTo(map);
+ }catch(e){/* pré-visualização é só um extra visual: se falhar, a navegação normal continua funcionando */}
+}
+function routeAheadBearing(){
+ // O OSRM recalcula a rota a partir da posição atual do carro a cada leitura
+ // do GPS — ou seja, o INÍCIO da geometria (routeGeom[0]) já está ancorado
+ // nele. Por isso, em vez de procurar "o trecho mais próximo" (que fica
+ // instável bem perto de curvas e cruzamentos, fazendo o ângulo tremer),
+ // simplesmente seguimos os primeiros ~18 metros da rota a partir do começo
+ // — dá um ângulo estável e sempre coerente com o trajeto recém-calculado.
+ if(!routeGeom||routeGeom.length<2)return null;
+ const targetDist=18;
+ let acc=0;
+ for(let i=1;i<routeGeom.length;i++){
+   const a=routeGeom[i-1],b=routeGeom[i];
+   acc+=distanceMeters(a[0],a[1],b[0],b[1]);
+   if(acc>=targetDist||i===routeGeom.length-1){
+     if(acc<3)return null; // rota rente demais pro início (quase chegando): não usa
+     return bearingBetween({lat:routeGeom[0][0],lng:routeGeom[0][1]},{lat:b[0],lng:b[1]});
+   }
+ }
+ return null;
+}
+function openDetail(s){selected=s;updateUI();updateDetailFields(s);show('detail')}
+function updateDetail(){if(!selected)return;updateDetailFields(selected)}
+function updateDetailFields(s){
+ $('detailNum').textContent=s.extra?'−':(s.stop||'—');
+ $('detailTitle').textContent=title(s);
+ $('detailAddress').textContent=address(s);
+ const bb=$('detailBusiness');
+ if(bb){bb.classList.toggle('active',!!s.business);bb.textContent=s.business?'🏢 ENDEREÇO COMERCIAL (marcado)':'🏢 MARCAR COMO ENDEREÇO COMERCIAL';}
+ const pb=$('detailPriority');
+ if(pb){const isP=manualTargetId===s.id;pb.classList.toggle('active',isP);pb.textContent=isP?'🎯 PRIORIDADE ATIVA (toque pra cancelar)':'🎯 IR AGORA (prioridade)';}
+ $('detailStopMeta').textContent=s.extra?'EXTRA':(s.stop||'—');
+ $('detailSeqMeta').textContent=s.extra?'EXTRA':(s.seq||'—');
+ $('detailPkMeta').textContent=s.packages.length;
+ const pkgs=[...s.packages].sort((a,b)=>{
+   if(!!a.extra!==!!b.extra)return a.extra?1:-1;
+   const qa=parseFloat(a.seq),qb=parseFloat(b.seq);
+   if(Number.isFinite(qa)&&Number.isFinite(qb)&&qa!==qb)return qa-qb;
+   return 0;
+ });
+ // Endereço, Parada e Ordem já aparecem no topo do modal — aqui mostramos só
+ // o essencial de cada volume: qual pacote é e o código de rastreio dele.
+ const packageHtml=pkgs.map((p,i)=>{
+   const label=p.extra?`Pacote extra ${i+1}`:(pkgs.length>1?`Pacote ${i+1} de ${pkgs.length}`:'Pacote');
+   const code=p.code?esc(p.code):'Sem código de rastreio';
+   return `<div class="package ${p.extra?'extraPackage':''}"><b>${label}</b><span class="pkgCode">${code}</span></div>`;
+ }).join('');
+ $('detailPackages').innerHTML=`<div class="packageHeader"><b>VOLUMES NESTE LOCAL</b><span>${pkgs.length} ${pkgs.length===1?'pacote':'pacotes'} — cada volume é exibido separadamente</span></div>`+packageHtml;
+}
+function renderList(){const q=norm($('listSearch')?.value||'');const list=$('list');if(!list)return;list.innerHTML='';stops.forEach(s=>{const text=norm([s.stop,s.seq,address(s),...s.packages.map(p=>p.code+' '+p.address)].join(' '));if(q&&!text.includes(q))return;const div=document.createElement('div');div.className='listItem';div.innerHTML=`<div class="listNum ${s.status==='entregue'?'done':s.status==='pulada'?'skip':''}">${esc(s.stop)}</div><div class="listMain"><b>${esc(title(s))}</b><span>${esc(address(s))}</span></div><div class="listCount">${s.packages.length}x</div>`;div.onclick=()=>{hide('listPanel');openDetail(s)};list.appendChild(div)});$('listSubtitle').textContent=`${stops.length} paradas • ${totalPackages()} pacotes`}
+let audioCtx=null;
+function playCelebration(){
+ // Pequeno arpejo ascendente e suave, gerado na hora — sem arquivo de áudio.
+ try{
+   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+   if(audioCtx.state==='suspended')audioCtx.resume();
+   [523.25,659.25,783.99,1046.5].forEach((f,i)=>{
+     const t=audioCtx.currentTime+i*0.11;
+     const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+     osc.type='sine';osc.frequency.value=f;
+     osc.connect(gain);gain.connect(audioCtx.destination);
+     gain.gain.setValueAtTime(0,t);
+     gain.gain.linearRampToValueAtTime(.15,t+.02);
+     gain.gain.exponentialRampToValueAtTime(.0001,t+.35);
+     osc.start(t);osc.stop(t+.4);
+   });
+ }catch(e){/* áudio bloqueado: ignora */}
+}
+function fireConfetti(){
+ // Confete simples desenhado num <canvas> próprio — sem depender de
+ // biblioteca externa (evita risco de CDN fora do ar).
+ try{
+   const canvas=document.createElement('canvas');
+   canvas.style.cssText='position:fixed;inset:0;z-index:6000;pointer-events:none';
+   canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+   document.body.appendChild(canvas);
+   const ctx=canvas.getContext('2d');
+   const colors=['#ff6f1f','#f0c21a','#1976e8','#078b42','#e64980'];
+   const pieces=Array.from({length:90},()=>({
+     x:Math.random()*canvas.width,y:-20-Math.random()*canvas.height*0.3,
+     vx:(Math.random()-0.5)*2.2,vy:2+Math.random()*3,
+     size:5+Math.random()*5,color:colors[Math.floor(Math.random()*colors.length)],
+     rot:Math.random()*360,vr:(Math.random()-0.5)*10
+   }));
+   let frame=0;
+   (function tick(){
+     frame++;
+     ctx.clearRect(0,0,canvas.width,canvas.height);
+     pieces.forEach(p=>{
+       p.x+=p.vx;p.y+=p.vy;p.rot+=p.vr;
+       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.rot*Math.PI/180);
+       ctx.fillStyle=p.color;ctx.fillRect(-p.size/2,-p.size/2,p.size,p.size*0.6);
+       ctx.restore();
+     });
+     if(frame<160)requestAnimationFrame(tick);else canvas.remove();
+   })();
+ }catch(e){/* efeito visual é só um bônus: se falhar, não trava nada */}
+}
+function loadHistory(){try{return JSON.parse(localStorage.getItem('roterisadorGPS_history')||'[]');}catch(e){return [];}}
+function saveHistoryEntry(entry){
+ const hist=loadHistory();
+ hist.unshift(entry);
+ while(hist.length>50)hist.pop();
+ try{localStorage.setItem('roterisadorGPS_history',JSON.stringify(hist));}catch(e){/* armazenamento cheio: ignora */}
+}
+function finishRoute(){
+ finishTimer();
+ const pk=totalPackages(),st=stops.filter(s=>!s.extra).length;
+ $('doneTotalPk').textContent=pk;
+ $('doneTotalStops').textContent=st;
+ $('doneTotalTime').textContent=formatTimer(timerElapsed);
+ $('doneTotalKm').textContent=routeKm.toFixed(1).replace('.',',')+' km';
+ saveHistoryEntry({date:Date.now(),packages:pk,stops:st,timeSec:timerElapsed,km:routeKm});
+ $('routeDoneModal').style.display='flex';
+ fireConfetti();
+ playCelebration();
+}
+function beep(freq=880,duration=0.09){
+ try{
+   if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+   if(audioCtx.state==='suspended')audioCtx.resume();
+   const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+   osc.type='sine';osc.frequency.value=freq;
+   osc.connect(gain);gain.connect(audioCtx.destination);
+   const now=audioCtx.currentTime;
+   gain.gain.setValueAtTime(0,now);
+   gain.gain.linearRampToValueAtTime(.22,now+.008);
+   gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+   osc.start(now);osc.stop(now+duration+.02);
+ }catch(e){/* áudio bloqueado pelo navegador (raro): ignora, não trava a ação */}
+}
+function setStatus(st){
+ const p=selected||firstPending();
+ if(!p)return toast('Nenhuma parada selecionada.');
+ const view={lat:map.getCenter().lat,lng:map.getCenter().lng,z:map.getZoom()};
+ const prevStatus=p.status;
+ // Alternador simples e instantâneo, sem etapas intermediárias: tocar de
+ // novo no mesmo botão sobre uma parada que já está nesse status desfaz a
+ // ação na hora (volta pra pendente) — sem mensagem de confirmação na tela.
+ const newStatus=(prevStatus===st)?'pendente':st;
+ p.status=newStatus;
+ p.packages?.forEach(pkg=>pkg.status=newStatus);
+ logStatusChange(prevStatus,newStatus);
+ selected=firstPending()||null;
+ save();updateUI();renderMap();drawRoute();
+ map.setView([view.lat,view.lng],view.z,{animate:false});
+ hide('detail');
+ if(newStatus==='entregue')beep(880); // bipe curto de confirmação
+ else if(newStatus==='pulada')beep(330); // som mais grave pra anular
+ if(newStatus!=='pendente'&&!selected){if(timerRunning)finishRoute();else $('routeDoneModal').style.display='flex';}
+}
+function navigate(s){
+ if(!s)return toast('Nenhuma parada selecionada.');
+ // A navegação externa usa EXCLUSIVAMENTE a coordenada fixa da parada.
+ // Rotação CSS, pan, zoom, centro do mapa e posição visual do marcador nunca entram no cálculo.
+ const c=correctionFor(s);
+ if(c){s.lat=c.lat;s.lng=c.lng;s.manual=true;}
+ const latNum=Number(s.lat),lngNum=Number(s.lng);
+ if(!validCoord(latNum,lngNum))return toast('Esta parada não possui coordenadas válidas. Navegação bloqueada.',3500);
+ if(map)save();
+ // Não arredondamos a coordenada corrigida: enviamos o valor armazenado no navegador.
+ const lat=String(latNum),lng=String(lngNum);
+ let url;
+ if(nav==='here'){
+   // Formato oficial de deeplink: origem = mylocation e destino = coordenada pura.
+   // Sem título, waypoint intermediário, origem antiga ou parâmetros de rota adicionais.
+   // BUG CORRIGIDO DE VEZ: já tentamos 2 nomes de pacote diferentes
+   // (com.here.app.maps.beta, depois com.here.app.maps) e mesmo assim a
+   // Play Store abria sugerindo instalar o HERE "normal" — ou seja, o app
+   // realmente instalado no aparelho não bate com nenhum desses palpites.
+   // A solução correta é NÃO adivinhar pacote nenhum: usamos o link
+   // https://share.here.com puro (sem o wrapper intent://). O HERE WeGo,
+   // em QUALQUER variante instalada (normal ou Beta), já se registra no
+   // Android como app oficial desse link (App Links) — o próprio sistema
+   // abre o app certo sozinho. Se não houver nenhum HERE instalado, o link
+   // abre normalmente no navegador.
+   url=`https://share.here.com/r/mylocation/${lat},${lng}?m=d`;
+ }else if(nav==='waze'){
+   url=`https://www.waze.com/ul?ll=${encodeURIComponent(lat+','+lng)}&navigate=yes`;
+ }else{
+   url=`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(lat+','+lng)}`;
+ }
+ toast(nav==='here'?'Abrindo HERE WeGo Beta com a coordenada corrigida...':'Abrindo navegação...',1200);
+ // Cada clique monta uma URL nova a partir dos dados atuais da parada.
+ setTimeout(()=>window.location.assign(url),120)
+}
+
+function startTimer(){
+ if(timer)clearInterval(timer);
+ if(!timerRunning||!startTime){updateTimerUI();return;}
+ timer=setInterval(()=>{timerElapsed=Math.max(0,Math.floor((Date.now()-startTime)/1000));updateTimerUI();},250);
+ updateTimerUI();
+}
+function saveAndStart(){selected=firstPending();save();closeAll();updateUI();if(stops.some(s=>s.lat!==null&&s.lng!==null)){const valid=stops.filter(s=>s.lat!==null&&s.lng!==null);map.fitBounds(L.latLngBounds(valid.map(s=>[s.lat,s.lng])),{padding:[90,130],maxZoom:16})}renderMap()}
+function beginAnalysis(){show('analysis');$('progressFill').style.width='15%';$('analysisText').textContent='Conferindo estrutura da lista...';setTimeout(()=>{$('progressFill').style.width='45%';$('analysisText').textContent=`${totalPackages()} pacotes em ${stops.length} pontos de entrega.`},350);setTimeout(()=>{$('progressFill').style.width='80%';$('analysisText').textContent='Verificando coordenadas e sequência...'},700);setTimeout(()=>{$('progressFill').style.width='100%';$('analysisText').textContent='Tudo pronto. Abrindo mapa...'},1100);setTimeout(()=>{hide('analysis');saveAndStart()},1400)}
+function startImport(file){const fr=new FileReader();fr.onload=()=>{try{if(!window.XLSX)throw new Error('Leitor de planilha não carregou.');const wb=XLSX.read(fr.result,{type:'array'}),ws=wb.Sheets[wb.SheetNames[0]],rows=XLSX.utils.sheet_to_json(ws,{defval:''});if(!rows.length)throw new Error('A planilha está vazia.');
+ const headerKeys=Object.keys(rows[0]||{});
+ const hasAddress=headerKeys.some(k=>['Destination Address','Endereço','Endereco','Rua','Logradouro','Street'].some(n=>norm(k)===norm(n)));
+ const hasStopOrSeq=headerKeys.some(k=>['Stop','Parada','Stop Number','Sequence','Sequencia','Sequência','Seq'].some(n=>norm(k)===norm(n)));
+ if(!hasAddress||!hasStopOrSeq)throw new Error('Estrutura de colunas inválida. Por favor, utilize o modelo padrão disponibilizado para o envio.');
+ stops=parseRows(rows);selected=firstPending();if(timer){clearInterval(timer);timer=null;}routeRequest++;if(routeLayer){routeLayer.remove();routeLayer=null;}arrowMarkers.forEach(a=>a.remove());arrowMarkers=[];startTime=0;timerElapsed=0;timerRunning=false;routeKm=0;manualTargetId=null;lotModeActive=false;lotModeLo=null;updateTimerUI();save();$('summaryPackages').textContent=totalPackages();$('summaryStops').textContent=stops.length;$('summaryText').textContent=`A lista foi lida com sucesso: ${totalPackages()} pacotes em ${stops.length} pontos de entrega. O mesmo número de Stop pode aparecer em endereços diferentes.`;updateUI();if(map)renderMap();show('summary')}catch(e){toast('Erro ao importar: '+e.message,4000)}};fr.onerror=()=>toast('Não foi possível ler o arquivo.',3500);fr.readAsArrayBuffer(file)}
+function loadScript(urls,test){return new Promise((resolve,reject)=>{if(test())return resolve();let i=0;function next(){if(i>=urls.length)return reject(new Error('Biblioteca não carregou'));const s=document.createElement('script');s.src=urls[i++];s.onload=()=>test()?resolve():next();s.onerror=next;document.head.appendChild(s)}next()})}
+function loadCss(urls){if(document.querySelector('link[data-leaflet]'))return;const l=document.createElement('link');l.rel='stylesheet';l.href=urls[0];l.dataset.leaflet='1';l.onerror=()=>{l.href=urls[1]};document.head.appendChild(l)}
+async function bootLibraries(){loadCss(LEAFLET_CSS);try{await loadScript(LEAFLET,()=>!!window.L);initMap()}catch(e){$('mapStatus').textContent='Mapa não carregou. Verifique a internet e recarregue a página.';$('mapStatus').classList.remove('hidden')}try{await loadScript(XLSX_SRC,()=>!!window.XLSX)}catch(e){toast('Leitor de Excel indisponível. Tente novamente com internet ativa.',5000)}}
+function updateMapTransform(){
+ // Atualização puramente visual (CSS), sem custo de rede: segura para rodar
+ // a cada frame de um gesto de arrastar/girar/ampliar com o dedo.
+ const el=$('map');
+ const rotated=(mapAngle%360)!==0;
+ el.classList.toggle('map-rotated',rotated||map3D);
+ el.classList.toggle('map-3d',map3D);
+ el.style.transform=`rotate(${mapAngle}deg)`;
+ el.style.transformOrigin='50% 50%';
+ // BUG CORRIGIDO: antes, a contra-rotação dos números das paradas (pra
+ // ficarem sempre em pé) só era recalculada quando os marcadores eram
+ // RECRIADOS (ex.: ao marcar uma entrega) — girar o mapa (bússola, gesto)
+ // não atualizava isso, e os números giravam junto, de cabeça pra baixo.
+ // Agora é uma variável CSS compartilhada, atualizada aqui (barato, sem
+ // recriar nenhum marcador) e herdada por TODOS os números automaticamente.
+ el.style.setProperty('--marker-counter',(((360-(mapAngle%360))+360)%360)+'deg');
+}
+function applyMapRotation(){
+ if(!map)return;
+ updateMapTransform();
+ const btn=$('compassBtn');
+ if(btn){btn.title=autoHeading?'Desativar bússola (voltar ao mapa livre)':'Ativar bússola (navegação 3D travada no carro)';btn.classList.toggle('active',autoHeading);}
+ setTimeout(()=>{map.invalidateSize({animate:false});if(routeLayer)drawRoute();},60);
+}
+function toggleCompass(){
+ // Botão único: LIGADO = perspectiva 3D + câmera travada no carro + mapa
+ // girando com o rumo do GPS (linha da rota sempre pra frente na tela).
+ // DESLIGADO = mapa 2D padrão, de cima, livre para mover como quiser.
+ const on=!autoHeading;
+ map3D=on;
+ autoHeading=on;
+ if(on&&Number.isFinite(gps.heading)){
+   applyHeadingLock(gps.heading); // já chama applyMapRotation()+save() por dentro
+ }else{
+   if(!on)mapAngle=0; // ao desligar, volta pro Norte, mapa "solto"
+   applyMapRotation();save();
+ }
+ toast(on?'Bússola ativada: navegação 3D travada no carro.':'Bússola desativada: mapa livre em 2D.',1500);
+}
+function pauseAutoHeading(){
+ if(!autoHeading)return;
+ autoHeading=false;
+ applyMapRotation();
+ toast('Bússola pausada — toque em ⌾ para retomar a navegação.',1800);
+}
+function resumeAutoHeading(){
+ autoHeading=true;
+ map3D=true;
+ if(Number.isFinite(gps.heading))applyHeadingLock(gps.heading);
+ else applyMapRotation();
+}
+// Gira mapAngle sempre pelo caminho mais curto até o ângulo alvo (em vez de
+// "saltar" para um valor absoluto). Isso evita que, ao cruzar a fronteira
+// 359°→0°, a transição suave do CSS interprete como girar quase a volta
+// inteira ao contrário — a causa do mapa parecendo "girar sem controle".
+function applyHeadingLock(heading){
+ const target=((-heading)%360+360)%360;
+ const current=((mapAngle%360)+360)%360;
+ let delta=((target-current)%360+540)%360-180; // sempre entre -180 e 180
+ mapAngle=mapAngle+delta;
+ applyMapRotation();save();
+}
+function bearingBetween(a,b){
+ const p=Math.PI/180,y1=a.lat*p,y2=b.lat*p,dl=(b.lng-a.lng)*p;
+ const y=Math.sin(dl)*Math.cos(y2),x=Math.cos(y1)*Math.sin(y2)-Math.sin(y1)*Math.cos(y2)*Math.cos(dl);
+ return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function updateHeading(pos){
+ let h=Number(pos.coords.heading);
+ if(!Number.isFinite(h)||h<0){
+   const cur={lat:Number(pos.coords.latitude),lng:Number(pos.coords.longitude)};
+   if(lastGpsPoint){const d=distanceMeters(lastGpsPoint.lat,lastGpsPoint.lng,cur.lat,cur.lng);if(d>=3)h=bearingBetween(lastGpsPoint,cur);}
+   lastGpsPoint=cur;
+ }
+ // O ângulo do começo da rota (já ancorada no carro pelo OSRM) é mais
+ // estável do que o heading bruto do GPS, que pode oscilar ou falhar.
+ const routeH=routeAheadBearing();
+ if(routeH!==null)h=routeH;
+ if(Number.isFinite(h)&&h>=0){gps.heading=h;if(autoHeading)applyHeadingLock(h);}
+}
+// Gira um vetor de tela (dx,dy) para o espaço interno (não rotacionado) do Leaflet.
+// Como o próprio contêiner do mapa é girado via CSS (transform:rotate), qualquer
+// coordenada de tela precisa ser "desgirada" por -mapAngle antes de ser usada
+// pelo Leaflet, que só entende seu próprio espaço de pixels sem rotação.
+function rotateScreenDelta(dx,dy){
+  const rad=mapAngle*Math.PI/180, cos=Math.cos(rad), sin=Math.sin(rad);
+  return {x:dx*cos+dy*sin, y:-dx*sin+dy*cos};
+}
+// Converte um ponto de tela (clientX/clientY) num containerPoint do Leaflet,
+// já compensando a rotação visual do mapa. O centro de rotação é sempre o
+// centro do viewport (#app), pois é onde o CSS ancora o transform-origin.
+function clientToContainerPoint(clientX,clientY){
+  const appRect=$('app').getBoundingClientRect();
+  const cx=appRect.left+appRect.width/2, cy=appRect.top+appRect.height/2;
+  const rel=rotateScreenDelta(clientX-cx,clientY-cy);
+  const el=map.getContainer();
+  return L.point(rel.x+el.offsetWidth/2, rel.y+el.offsetHeight/2);
+}
+function touchDist(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+function touchAngleDeg(a,b){return Math.atan2(b.clientY-a.clientY,b.clientX-a.clientX)*180/Math.PI;}
+function touchMid(a,b){return {x:(a.clientX+b.clientX)/2,y:(a.clientY+b.clientY)/2};}
+function installInvariantPan(){
+  if(!map)return;
+  const el=map.getContainer();
+  if(map.dragging)map.dragging.disable();
+  if(map.touchZoom)map.touchZoom.disable(); // zoom nativo por pinça é substituído pelo gesto combinado abaixo
+  let mode=null; // null | 'pan' | 'pinch'
+  let lastX=0,lastY=0,pointerId=null;
+  let pinchStartDist=0,pinchAngle=0,pinchStartZoom=0,pinchAnchorLatLng=null;
+  let pinchRotEngaged=false,pinchRotAccum=0;
+
+  const panMove=(x,y)=>{
+    const d=rotateScreenDelta(x-lastX,y-lastY);
+    lastX=x;lastY=y;
+    if(Math.abs(d.x)+Math.abs(d.y)>0) map.panBy([-d.x,-d.y],{animate:false,noMoveStart:true});
+  };
+  const startPinch=(t0,t1)=>{
+    mode='pinch';
+    pinchStartDist=touchDist(t0,t1);
+    pinchAngle=touchAngleDeg(t0,t1);
+    pinchStartZoom=map.getZoom();
+    pinchRotEngaged=false;pinchRotAccum=0;
+    if(map3D){
+      // No 3D o .leaflet-container tem uma inclinação extra (perspective+rotateX)
+      // que não é uma rotação 2D simples: não dá para converter o ponto do dedo
+      // com exatidão. Usamos o centro atual do mapa como âncora do zoom.
+      pinchAnchorLatLng=map.getCenter();
+    }else{
+      const mid=touchMid(t0,t1);
+      pinchAnchorLatLng=map.containerPointToLatLng(clientToContainerPoint(mid.x,mid.y));
+    }
+  };
+  const movePinch=(t0,t1)=>{
+    const dist=touchDist(t0,t1), angle=touchAngleDeg(t0,t1);
+    if(pinchStartDist<=0)return;
+    const zoom=pinchStartZoom+Math.log2(dist/pinchStartDist);
+    const d=(((angle-pinchAngle)%360)+540)%360-180; // delta pelo caminho mais curto
+    pinchAngle=angle;
+    if(!pinchRotEngaged){
+      // Só passa a girar o mapa depois de um giro claramente intencional dos
+      // dedos (>12°) — evita que um simples "beliscão" de zoom gire o mapa
+      // sem querer, que era uma das causas do mapa "girando sem controle".
+      pinchRotAccum+=d;
+      if(Math.abs(pinchRotAccum)>=12){
+        pinchRotEngaged=true;
+        mapAngle=mapAngle+pinchRotAccum;
+        pauseAutoHeading();
+      }
+    }else{
+      mapAngle=mapAngle+d;
+    }
+    updateMapTransform();
+    map.setZoomAround(pinchAnchorLatLng,zoom,{animate:false});
+  };
+
+  // --- Ponteiros de mouse (desktop/teste) ---
+  el.addEventListener('pointerdown',e=>{
+    if(e.pointerType==='touch')return;
+    if(e.button!==0)return;
+    el.style.transition='none';
+    mode='pan';pointerId=e.pointerId;lastX=e.clientX;lastY=e.clientY;
+    userGestureActive=true;
+    pauseAutoHeading();
+    try{el.setPointerCapture(e.pointerId)}catch(_){ }
+  },{passive:false});
+  el.addEventListener('pointermove',e=>{
+    if(mode!=='pan'||e.pointerId!==pointerId)return;
+    e.preventDefault();panMove(e.clientX,e.clientY);
+  },{passive:false});
+  const endPointer=e=>{
+    if(mode!=='pan'||e.pointerId!==pointerId)return;
+    mode=null;pointerId=null;
+    el.style.transition='';
+    userGestureActive=false;
+    try{el.releasePointerCapture(e.pointerId)}catch(_){ }
+    save();
+  };
+  el.addEventListener('pointerup',endPointer,{passive:true});
+  el.addEventListener('pointercancel',endPointer,{passive:true});
+
+  // --- Toques (celular): 1 dedo arrasta, 2 dedos giram + ampliam juntos ---
+  el.addEventListener('touchstart',e=>{
+    el.style.transition='none';
+    userGestureActive=true;
+    if(e.touches.length===1){
+      mode='pan';const t=e.touches[0];lastX=t.clientX;lastY=t.clientY;
+      pauseAutoHeading();
+    }else if(e.touches.length===2){
+      e.preventDefault();
+      startPinch(e.touches[0],e.touches[1]);
+    }else{
+      mode=null;
+    }
+  },{passive:false});
+  el.addEventListener('touchmove',e=>{
+    if(mode==='pan'&&e.touches.length===1){
+      e.preventDefault();const t=e.touches[0];panMove(t.clientX,t.clientY);
+    }else if(mode==='pinch'&&e.touches.length>=2){
+      e.preventDefault();movePinch(e.touches[0],e.touches[1]);
+    }
+  },{passive:false});
+  const endTouch=e=>{
+    const wasPinch=mode==='pinch';
+    if(mode)save();
+    // Se ainda sobrar 1 dedo na tela após soltar outro, retoma o arraste sem solavanco.
+    if(e.touches&&e.touches.length===1){
+      mode='pan';const t=e.touches[0];lastX=t.clientX;lastY=t.clientY;
+    }else if(e.touches&&e.touches.length===2){
+      startPinch(e.touches[0],e.touches[1]);
+    }else{
+      mode=null;
+      userGestureActive=false;
+      el.style.transition=''; // volta a permitir o giro suave automático do GPS
+    }
+    if(wasPinch)applyMapRotation(); // recalcula tamanho/rota só agora, uma única vez
+  };
+  el.addEventListener('touchend',endTouch,{passive:true});
+  el.addEventListener('touchcancel',endTouch,{passive:true});
+}
+function rotateMapStep(){
+  // Não aplicamos módulo aqui: rotate(405deg) é visualmente igual a rotate(45deg),
+  // mas se guardássemos o valor já "enrolado" (405%360=45), a transição suave do
+  // CSS interpretava isso como girar de volta quase uma volta inteira (o "tranco").
+  // Deixando o número crescer livremente, o giro fica sempre contínuo e suave.
+  mapAngle=mapAngle+45;
+  applyMapRotation();
+  save();
+  toast(`Mapa girado para ${((mapAngle%360)+360)%360}°`,900);
+}
+function initMap(){
+ if(map||!window.L)return;
+ const opts={zoomControl:false,preferCanvas:true,attributionControl:true,zoomSnap:0.25,zoomDelta:1,wheelPxPerZoomLevel:120};
+ map=L.map('map',opts).setView([-22.6458,-47.1961],14);
+ tile=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:20,maxNativeZoom:19,attribution:'© OpenStreetMap'});
+ satellite=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:20,maxNativeZoom:19,attribution:'© Esri'});
+ tile.addTo(map);$('mapStatus').classList.add('hidden');setTimeout(()=>map.invalidateSize({animate:false}),100);
+ installInvariantPan();
+ mapAngle=Number(window.savedMapView?.rotation)||0;
+ mapAngle=((mapAngle%360)+360)%360;
+ applyMapRotation();
+ map.on('moveend zoomend',()=>{if(!map)return;if(localStorage.getItem(STORE))save();scheduleOneway()});
+ $('onewayBtn')?.classList.toggle('active',onewayOn);
+ scheduleOneway();
+ loadDailyLog();
+ if(load()){
+   $('navChoice').textContent=nav==='here'?'HERE WeGo Beta':nav==='google'?'Google Maps':'Waze';
+   updateUI();startTimer();
+   if(lotModeActive&&(Number.isFinite(lotModeLo)||lotModeLo==='extras')){
+     lotPanelLo=lotModeLo;
+     updateLotPanelLabel();
+     $('lotPanel').style.display='flex';
+   }
+   if(window.savedMapView&&Number.isFinite(window.savedMapView.lat)&&Number.isFinite(window.savedMapView.lng)){
+     map.setView([window.savedMapView.lat,window.savedMapView.lng],window.savedMapView.z||14,{animate:false});
+     mapAngle=((Number(window.savedMapView.rotation)||0)%360+360)%360;
+     applyMapRotation();
+   }else if(stops.length){const valid=stops.filter(s=>s.lat!==null&&s.lng!==null);if(valid.length)map.fitBounds(L.latLngBounds(valid.map(s=>[s.lat,s.lng])),{padding:[90,130],maxZoom:16})}
+   if(window.savedUiState?.detail&&selected)openDetail(selected);else if(window.savedUiState?.list)show('listPanel');else if(window.savedUiState?.menu)show('menu');
+   if(gpsWanted)setTimeout(startGps,500);
+ }
+}
+function showGpsHelp(extra){
+ const el=$('gpsDiag');
+ const secure=window.isSecureContext===true;
+ const protocol=location.protocol||'—';
+ let perm='não consultada';
+ const finish=()=>{
+   el.innerHTML=`<b>Diagnóstico</b><br>Endereço: <span class="${protocol==='https:'?'diagOk':'diagWarn'}">${esc(protocol)}</span><br>HTTPS seguro: <span class="${secure?'diagOk':'diagErr'}">${secure?'SIM':'NÃO'}</span><br>Permissão do site: <span class="${perm==='granted'?'diagOk':perm==='denied'?'diagErr':'diagWarn'}">${esc(perm)}</span>${extra?`<br>Motivo: <span class="diagErr">${esc(extra)}</span>`:''}`;
+ };
+ try{
+   if(navigator.permissions?.query){
+     navigator.permissions.query({name:'geolocation'}).then(p=>{perm=p.state;finish()}).catch(()=>finish());
+   }else finish();
+ }catch(e){finish()}
+ show('gpsHelp');
+}
+async function startGps(){
+  if(!navigator.geolocation){
+    $('gpsStatus').textContent='GPS NÃO DISPONÍVEL NESTE NAVEGADOR';
+    $('gpsStatus').className='gpsStatus err';
+    toast('Este navegador não oferece localização GPS.',4500);
+    showGpsHelp('O navegador não disponibilizou a Geolocation API.');
+    return;
+  }
+  // Não bloqueamos mais o GPS quando o arquivo é aberto localmente (file://).
+  // Alguns navegadores Android tratam recursos locais de formas diferentes;
+  // tentamos a Geolocation API diretamente e mostramos o erro real se o navegador recusar.
+  try{
+    if(navigator.permissions?.query){
+      const p=await navigator.permissions.query({name:'geolocation'});
+      if(p.state==='denied'){
+        $('gpsStatus').textContent='GPS NEGADO • PERMISSÃO BLOQUEADA';
+        $('gpsStatus').className='gpsStatus err';
+        showGpsHelp('O navegador informou que a localização está bloqueada.');
+        return;
+      }
+    }
+  }catch(e){}
+  gpsOn=true;
+  autoHeading=true;
+  gpsWanted=true;
+  save();
+  $('gpsStatus').textContent='📍 PROCURANDO O CARRO...';
+  $('gpsStatus').className='gpsStatus gpsTap';
+  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
+  let primeiraLeitura=true;
+  const sucesso=pos=>{
+    gps.lat=Number(pos.coords.latitude);
+    gps.lng=Number(pos.coords.longitude);
+    gps.accuracy=Number(pos.coords.accuracy)||0;
+    updateHeading(pos);
+    if(lastKmPoint){
+      const d=distanceMeters(lastKmPoint.lat,lastKmPoint.lng,gps.lat,gps.lng);
+      if(d>=2&&d<500){logToday({km:d/1000});if(timerRunning)routeKm+=d/1000;} // ignora ruído mínimo e saltos de GPS (teleporte)
+    }
+    lastKmPoint={lat:gps.lat,lng:gps.lng};
+    $('gpsStatus').textContent=`🚙 CARRO LOCALIZADO • ±${Math.round(gps.accuracy)} m`;
+    $('gpsStatus').className='gpsStatus ok';
+    renderCar();
+    if(primeiraLeitura&&map){primeiraLeitura=false;map.setView([gps.lat,gps.lng],Math.max(map.getZoom(),16),{animate:true})}
+    else if(autoHeading&&map&&!userGestureActive){map.panTo([gps.lat,gps.lng],{animate:true,duration:.6,easeLinearity:.25,noMoveStart:true})}
+    if(!localEdit)drawRoute();
+  };
+  const erro=err=>{
+    const msg=err.code===1?'GPS NEGADO • PERMISSÃO BLOQUEADA':err.code===2?'GPS SEM SINAL • ATIVE A LOCALIZAÇÃO DO CELULAR':'GPS DEMOROU • TENTE NOVAMENTE';
+    $('gpsStatus').textContent=msg;
+    $('gpsStatus').className='gpsStatus err';
+    if(err.code===1){gpsWanted=false;save();showGpsHelp(msg);}
+    else toast(msg,4500);
+  };
+  navigator.geolocation.getCurrentPosition(sucesso,erro,{enableHighAccuracy:true,maximumAge:0,timeout:30000});
+  watchId=navigator.geolocation.watchPosition(sucesso,erro,{enableHighAccuracy:true,maximumAge:1000,timeout:30000});
+}
+
+function centerMap(){
+ if(!map)return;
+ if(gps.lat!==null){
+   resumeAutoHeading();
+   map.setView([gps.lat,gps.lng],Math.max(map.getZoom(),16),{animate:true});
+ }else if(selected?.lat!==null){
+   map.setView([selected.lat,selected.lng],Math.max(map.getZoom(),16),{animate:true});
+ }else{
+   toast('GPS ainda não está disponível.');
+ }
+}
+function tryReenterFullscreen(){
+  // Ao voltar do app de navegação externo (HERE/Google/Waze), o navegador
+  // costuma sair da tela cheia. Se o usuário tinha ativado a tela cheia antes
+  // de tocar em "IR ATÉ O LOCAL", tentamos religá-la automaticamente.
+  if(!fullscreenWanted||document.fullscreenElement)return;
+  const app=$('app');
+  if(app?.requestFullscreen)app.requestFullscreen().catch(()=>{});
+}
+function initEvents(){
+ $('menuImport').onclick=()=>{hide('menu');show('importInfo')};$('pickFileBtn').onclick=()=>{hide('importInfo');$('file').click()};$('file').onchange=e=>{if(e.target.files?.[0])startImport(e.target.files[0]);e.target.value=''};
+ $('menuBtn').onclick=()=>show('menu');$('menuList').onclick=()=>{hide('menu');show('listPanel');renderList()};$('menuGps').onclick=()=>{hide('menu');startGps()};$('menuCenter').onclick=()=>{hide('menu');centerMap()};$('menuClear').onclick=()=>{if(confirm('Apagar a lista salva?')){localStorage.removeItem(STORE);stops=[];selected=null;if(timer){clearInterval(timer);timer=null;}routeRequest++;if(routeLayer){routeLayer.remove();routeLayer=null;}arrowMarkers.forEach(a=>a.remove());arrowMarkers=[];startTime=0;timerElapsed=0;timerRunning=false;routeKm=0;manualTargetId=null;lotModeActive=false;lotModeLo=null;updateTimerUI();save();updateUI();toast('Rota apagada.')}};$('menuNav').onclick=()=>{nav=nav==='here'?'google':nav==='google'?'waze':'here';$('navChoice').textContent=nav==='here'?'HERE WeGo Beta':nav==='google'?'Google Maps':'Waze';save();toast('Navegação: '+$('navChoice').textContent)};
+ $('menuReports').onclick=()=>{hide('menu');$('fuelKmL').value=fuelKmL||'';$('fuelPrice').value=fuelPrice||'';renderReports('hoje');show('reports')};
+ $('menuHistory').onclick=()=>{hide('menu');renderHistory();show('historyPanel')};
+ document.querySelectorAll('.periodTab').forEach(t=>t.onclick=()=>renderReports(t.dataset.period));
+ $('saveFuelSettings').onclick=()=>{
+   const kml=Number(String($('fuelKmL').value).replace(',','.'));
+   const price=Number(String($('fuelPrice').value).replace(',','.'));
+   fuelKmL=Number.isFinite(kml)&&kml>0?kml:null;
+   fuelPrice=Number.isFinite(price)&&price>0?price:null;
+   try{localStorage.setItem('roterisadorGPS_fuel',JSON.stringify({kmL:fuelKmL,price:fuelPrice}));}catch(e){}
+   const activeTab=document.querySelector('.periodTab.active');
+   renderReports(activeTab?activeTab.dataset.period:'hoje');
+   toast('Configuração salva.',1500);
+ };
+ $('startRoute').onclick=beginAnalysis;$('deliverBtn').onclick=()=>setStatus('entregue');$('skipBtn').onclick=()=>setStatus('pulada');$('navigateBtn').onclick=()=>navigate(selected||firstPending());
+ $('gpsBtn').onclick=startGps;$('gpsRetry').onclick=()=>{hide('gpsHelp');setTimeout(startGps,150)};$('layerBtn').onclick=()=>{if(!map)return;const c=map.getCenter(),z=map.getZoom();if(map.hasLayer(tile)){map.removeLayer(tile);satellite.addTo(map)}else{map.removeLayer(satellite);tile.addTo(map)}map.setView(c,z,{animate:false})};$('fullBtn').onclick=async()=>{try{if(!document.fullscreenElement){await $('app').requestFullscreen();fullscreenWanted=true;}else{await document.exitFullscreen();fullscreenWanted=false;}save();}catch(e){toast('Tela cheia não disponível neste navegador.')}}; $('timerBtn').onclick=toggleTimer; $('rotateBtn').onclick=()=>{pauseAutoHeading();rotateMapStep()}; $('compassBtn').onclick=toggleCompass; $('onewayBtn').onclick=toggleOneway; $('lotBtn').onclick=toggleLotPanel; $('lotPrevBtn').onclick=()=>shiftLotPanel(-1); $('lotNextBtn').onclick=()=>shiftLotPanel(1); $('lotExtrasBtn').onclick=toggleExtrasLot; $('lotCloseBtn').onclick=closeLotPanel; $('routeDoneOk').onclick=()=>{$('routeDoneModal').style.display='none'};
+ $('listSearch').oninput=renderList;
+ $('detailNavigate').onclick=()=>navigate(selected);$('detailDeliver').onclick=()=>setStatus('entregue');$('detailSkip').onclick=()=>setStatus('pulada');
+ $('detailBusiness').onclick=()=>{if(!selected)return;selected.business=!selected.business;selected.packages?.forEach(p=>p.business=selected.business);save();updateDetailFields(selected);renderMap();};
+ $('detailPriority').onclick=()=>{
+   if(!selected)return;
+   manualTargetId=manualTargetId===selected.id?null:selected.id;
+   save();updateDetailFields(selected);updateUI();renderMap();drawRoute();
+   toast(manualTargetId?'Prioridade ativada: essa parada vira a próxima agora. Ao concluí-la, volta pro fluxo anterior sozinho.':'Prioridade cancelada — voltando ao fluxo normal.',2600);
+ };
+ $('businessBtn').onclick=()=>{
+   businessFilterActive=!businessFilterActive;
+   $('businessBtn').classList.toggle('active',businessFilterActive);
+   if(businessFilterActive&&!stops.some(s=>s.business))toast('Nenhum endereço foi marcado como comercial ainda. Abra uma parada e toque em 🏢.',3200);
+   selected=firstPending();save();updateUI();renderMap();drawRoute();
+   toast(businessFilterActive?'Filtro ativado: só empresas marcadas.':'Filtro desativado: todas as entregas.',1800);
+ };
+ $('detailChange').onclick=()=>{if(!selected)return;$('addrSearchInput').value='';$('addrSearchResults').innerHTML='';$('manualLat').value='';$('manualLng').value='';show('editLocal')};
+ function applyNewLocation(lat,lng,msg){
+   if(!selected)return;
+   if(!validCoord(lat,lng)){hide('editLocal');return toast('Coordenada inválida. Correção não salva.')}
+   selected.lat=lat;selected.lng=lng;selected.manual=true;
+   window.coordCorrections=window.coordCorrections||{};const keys=[addressKey(selected),streetNumberKey(selected)].filter(Boolean);keys.forEach(k=>window.coordCorrections[k]={lat,lng});
+   stops.forEach(s=>{const same=keys.includes(addressKey(s))||keys.includes(streetNumberKey(s));if(same){s.lat=lat;s.lng=lng;s.manual=true;s.packages?.forEach(p=>{p.lat=lat;p.lng=lng;p.manual=true})}});
+   save();hide('editLocal');updateUI();renderMap();drawRoute();openDetail(selected);toast(msg||'Novo local salvo e será priorizado nas próximas rotas para este endereço.');
+ }
+ $('confirmLocal').onclick=()=>{if(!selected||gps.lat===null||gps.lng===null){hide('editLocal');return toast('GPS ainda não está disponível.')}applyNewLocation(Number(gps.lat),Number(gps.lng))};
+ $('confirmManualCoord').onclick=()=>{
+   const lat=Number(String($('manualLat').value).replace(',','.'));
+   const lng=Number(String($('manualLng').value).replace(',','.'));
+   if(!validCoord(lat,lng))return toast('Digite latitude e longitude válidas (ex: -22.9068, -43.1729).',3000);
+   applyNewLocation(lat,lng);
+ };
+ // Busca de endereço gratuita via Nominatim (OpenStreetMap) — sem precisar de
+ // chave de API paga (Google Places/HERE/Mapbox exigem cadastro e cobrança).
+ let addrSearchTimer=null,addrSearchReq=0;
+ $('addrSearchInput').addEventListener('input',e=>{
+   const q=e.target.value.trim();
+   clearTimeout(addrSearchTimer);
+   if(q.length<4){$('addrSearchResults').innerHTML='';return}
+   addrSearchTimer=setTimeout(async()=>{
+     const myReq=++addrSearchReq;
+     $('addrSearchResults').innerHTML='<div class="addrResult">Buscando...</div>';
+     try{
+       const url=`https://nominatim.openstreetmap.org/search?format=json&addressdetails=0&limit=5&countrycodes=br&q=${encodeURIComponent(q)}`;
+       const r=await fetch(url,{headers:{'Accept-Language':'pt-BR'}});
+       const data=await r.json();
+       if(myReq!==addrSearchReq)return;
+       if(!data.length){$('addrSearchResults').innerHTML='<div class="addrResult">Nenhum endereço encontrado.</div>';return}
+       $('addrSearchResults').innerHTML='';
+       data.forEach(item=>{
+         const div=document.createElement('div');
+         div.className='addrResult';
+         div.style.cursor='pointer';
+         div.textContent=item.display_name;
+         div.onclick=()=>applyNewLocation(Number(item.lat),Number(item.lon),'Local definido pela busca de endereço.');
+         $('addrSearchResults').appendChild(div);
+       });
+     }catch(e){if(myReq===addrSearchReq)$('addrSearchResults').innerHTML='<div class="addrResult">Busca indisponível agora (sem internet?).</div>';}
+   },600);
+ });
+$('cancelLocal').onclick=()=>hide('editLocal');
+ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>hide(b.dataset.close));
+ function recenterAfterResize(){
+   if(!map)return;
+   map.invalidateSize({animate:false});
+   if(gps.lat!==null&&gps.lng!==null)map.setView([gps.lat,gps.lng],map.getZoom(),{animate:false});
+   else if(selected?.lat!==null&&selected?.lng!==null)map.setView([selected.lat,selected.lng],map.getZoom(),{animate:false});
+ }
+ window.addEventListener('resize',()=>setTimeout(recenterAfterResize,120));window.addEventListener('orientationchange',()=>setTimeout(recenterAfterResize,500));window.addEventListener('pageshow',()=>setTimeout(()=>{tryReenterFullscreen();if(map){recenterAfterResize();renderMap();applyMapRotation();}if(gpsWanted&&watchId===null)setTimeout(startGps,350)},250));document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){setTimeout(()=>{tryReenterFullscreen();if(map){recenterAfterResize();renderMap();applyMapRotation();}if(gpsWanted&&watchId===null)startGps()},250)}});
+}
+updateTimerUI();if(timerRunning&&startTime){startTimer()}else{timerRunning=false;startTime=0;updateTimerUI()}initEvents();bootLibraries();
+if('serviceWorker' in navigator && location.protocol!=='file:'){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}));}
+
+</script>
+</body></html>
